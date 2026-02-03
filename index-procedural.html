@@ -755,7 +755,6 @@
 <body>
   <div id="app"></div>
 
-  <script src="mods/scriptracker.min.js"></script>
   <script type="module">
     import { h, render } from 'https://esm.sh/preact@10.19.3';
     import { useState, useEffect, useRef, useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
@@ -783,9 +782,7 @@
     let audioCtx = null;
     let soundEnabled = true;
     let musicPlaying = false;
-    let modPlayer = null;
-    let currentTrackLevel = 0;
-    let fadeInterval = null;
+    let musicNodes = null;
 
     function getAudioContext() {
       if (!audioCtx) {
@@ -794,110 +791,230 @@
       return audioCtx;
     }
 
-    // Level-to-track mapping for MOD/XM files
-    const LEVEL_TRACKS = [
-      { file: 'mods/dans_la_rue.xm', name: 'Dans la Rue' },
-      { file: 'mods/chica_pop.xm', name: 'Chica Pop' },
-      { file: 'mods/8bit_love.xm', name: '8-Bit Love' },
-      { file: 'mods/crush.xm', name: 'Crush' }
-    ];
+    // Note frequencies lookup (shared across all levels)
+    // Extended with sharps/flats for richer key support
+    const NOTE = {
+      // Octave 2
+      A2: 110.00, Bb2: 116.54, B2: 123.47,
+      // Octave 3
+      C3: 130.81, Db3: 138.59, D3: 146.83, Eb3: 155.56, E3: 164.81, F3: 174.61,
+      Gb3: 185.00, G3: 196.00, Ab3: 207.65, A3: 220.00, Bb3: 233.08, B3: 246.94,
+      // Octave 4
+      C4: 261.63, Db4: 277.18, D4: 293.66, Eb4: 311.13, E4: 329.63, F4: 349.23,
+      Gb4: 369.99, G4: 392.00, Ab4: 415.30, A4: 440.00, Bb4: 466.16, B4: 493.88,
+      // Octave 5
+      C5: 523.25, Db5: 554.37, D5: 587.33, Eb5: 622.25, E5: 659.25, F5: 698.46,
+      Gb5: 739.99, G5: 783.99, Ab5: 830.61, A5: 880.00, Bb5: 932.33, B5: 987.77,
+      // Octave 6
+      C6: 1046.50
+    };
 
-    // Preloaded track data (ArrayBuffers)
-    const preloadedTracks = {};
-
-    // Preload all MOD files in background
-    async function preloadModTracks() {
-      const promises = LEVEL_TRACKS.map(async (track) => {
-        try {
-          const resp = await fetch(track.file);
-          if (resp.ok) {
-            preloadedTracks[track.file] = await resp.arrayBuffer();
-          }
-        } catch (e) {
-          console.log('Failed to preload:', track.file, e);
-        }
-      });
-      await Promise.all(promises);
-      console.log('MOD tracks preloaded:', Object.keys(preloadedTracks).length);
-    }
-
-    // Start preloading immediately
-    preloadModTracks();
-
-    // MOD/XM Background Music via ScripTracker
+    // C64 SID-style Background Music Generator
+    // Inspired by Rob Hubbard, Martin Galway, Ben Daglish
     function startBackgroundMusic(levelIndex = 0) {
       if (musicPlaying || !soundEnabled) return;
 
-      const track = LEVEL_TRACKS[levelIndex] || LEVEL_TRACKS[0];
-      currentTrackLevel = levelIndex;
+      const levelMusic = LEVELS[levelIndex].music;
 
       try {
-        // Cancel any in-progress fade and clean up previous player
-        if (fadeInterval) {
-          clearInterval(fadeInterval);
-          fadeInterval = null;
+        const ctx = getAudioContext();
+
+        // Master output with compression for that punchy SID feel
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.value = -20;
+        compressor.knee.value = 10;
+        compressor.ratio.value = 4;
+        compressor.connect(ctx.destination);
+
+        const masterGain = ctx.createGain();
+        masterGain.gain.value = 0.25;
+        masterGain.connect(compressor);
+
+        // Channel gains (3 channels like SID)
+        const bassGain = ctx.createGain();
+        bassGain.gain.value = 0.5;
+        bassGain.connect(masterGain);
+
+        const arpGain = ctx.createGain();
+        arpGain.gain.value = 0.18;
+        arpGain.connect(masterGain);
+
+        const leadGain = ctx.createGain();
+        leadGain.gain.value = 0.35;
+        leadGain.connect(masterGain);
+
+        // Get level-specific music data
+        const chords = levelMusic.chords(NOTE);
+        const melody = levelMusic.melody(NOTE);
+        const BPM = levelMusic.bpm;
+        const beatMs = 60000 / BPM;
+        const arpSpeed = levelMusic.arpSpeed;
+
+        let chordIndex = 0;
+        let beatInChord = 0;
+        let melodyIndex = 0;
+        let arpNoteIndex = 0;
+
+        // Create pulse-like wave for lead (PWM simulation)
+        function createPulseOsc(freq, pulseWidth = 0.25) {
+          const osc = ctx.createOscillator();
+          const real = new Float32Array(32);
+          const imag = new Float32Array(32);
+          real[0] = 0;
+          imag[0] = 0;
+          for (let i = 1; i < 32; i++) {
+            // Attempt pulse-like harmonics
+            imag[i] = (2 / (i * Math.PI)) * Math.sin(i * Math.PI * pulseWidth);
+          }
+          const wave = ctx.createPeriodicWave(real, imag);
+          osc.setPeriodicWave(wave);
+          osc.frequency.value = freq;
+          return osc;
         }
-        if (modPlayer) {
-          try { modPlayer.stop(); } catch (e) {}
-          modPlayer = null;
+
+        // Bass note (triangle wave - classic SID bass)
+        function playBass(freq, duration) {
+          const osc = ctx.createOscillator();
+          const env = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          osc.connect(env);
+          env.connect(bassGain);
+          const now = ctx.currentTime;
+          env.gain.setValueAtTime(0.8, now);
+          env.gain.setValueAtTime(0.6, now + 0.05);
+          env.gain.exponentialRampToValueAtTime(0.01, now + duration - 0.05);
+          osc.start(now);
+          osc.stop(now + duration);
         }
 
-        modPlayer = new ScripTracker();
+        // Lead note with vibrato (SID style)
+        function playLead(freq, duration) {
+          if (freq === 0) return;
+          const osc = createPulseOsc(freq, 0.15 + Math.random() * 0.2);
+          const env = ctx.createGain();
+          const vibrato = ctx.createOscillator();
+          const vibratoGain = ctx.createGain();
 
-        modPlayer.on(ScripTracker.Events.playerReady, function() {
-          modPlayer.setMasterVolume(0.2);
-          modPlayer.play();
-          musicPlaying = true;
-        });
+          vibrato.frequency.value = 5; // 5Hz vibrato
+          vibratoGain.gain.value = freq * 0.02; // 2% pitch variation
+          vibrato.connect(vibratoGain);
+          vibratoGain.connect(osc.frequency);
 
-        modPlayer.on(ScripTracker.Events.songEnded, function() {
-          // Loop the track
-          modPlayer.play();
-        });
+          osc.connect(env);
+          env.connect(leadGain);
 
-        // Use preloaded data if available, otherwise load from URL
-        const data = preloadedTracks[track.file];
-        if (data) {
-          const ext = track.file.split('.').pop();
-          modPlayer.loadRaw(new Uint8Array(data), ext);
-        } else {
-          modPlayer.loadModule(track.file);
+          const now = ctx.currentTime;
+          env.gain.setValueAtTime(0, now);
+          env.gain.linearRampToValueAtTime(0.7, now + 0.02);
+          env.gain.setValueAtTime(0.5, now + 0.08);
+          env.gain.exponentialRampToValueAtTime(0.01, now + duration - 0.02);
+
+          vibrato.start(now);
+          osc.start(now);
+          vibrato.stop(now + duration);
+          osc.stop(now + duration);
         }
+
+        // Smooth arpeggio with filter for warm sound
+        let arpIntervalId = null;
+        function startArpeggio() {
+          // Create a shared filter for warmth
+          const arpFilter = ctx.createBiquadFilter();
+          arpFilter.type = 'lowpass';
+          arpFilter.frequency.value = 1200;
+          arpFilter.Q.value = 1;
+          arpFilter.connect(arpGain);
+
+          arpIntervalId = setInterval(() => {
+            if (!musicPlaying || !soundEnabled) {
+              clearInterval(arpIntervalId);
+              return;
+            }
+            const chord = chords[chordIndex];
+            const freq = chord.arp[arpNoteIndex % chord.arp.length];
+            arpNoteIndex++;
+
+            const osc = ctx.createOscillator();
+            const env = ctx.createGain();
+            osc.type = 'triangle'; // Softer waveform
+            osc.frequency.value = freq;
+            osc.connect(env);
+            env.connect(arpFilter);
+
+            const now = ctx.currentTime;
+            const duration = arpSpeed / 1000;
+            // Soft attack and release
+            env.gain.setValueAtTime(0, now);
+            env.gain.linearRampToValueAtTime(0.5, now + duration * 0.1);
+            env.gain.setValueAtTime(0.4, now + duration * 0.3);
+            env.gain.exponentialRampToValueAtTime(0.01, now + duration * 0.95);
+            osc.start(now);
+            osc.stop(now + duration);
+          }, arpSpeed);
+        }
+
+        // Main beat scheduler
+        function scheduleBeat() {
+          if (!musicPlaying || !soundEnabled) return;
+
+          const chord = chords[chordIndex];
+
+          // Bass on beats 1 and 3
+          if (beatInChord === 0 || beatInChord === 2) {
+            playBass(chord.bass, beatMs / 1000 * 1.8);
+          }
+
+          // Melody every beat
+          playLead(melody[melodyIndex], beatMs / 1000 * 0.9);
+          melodyIndex = (melodyIndex + 1) % melody.length;
+
+          beatInChord++;
+          if (beatInChord >= 4) {
+            beatInChord = 0;
+            chordIndex = (chordIndex + 1) % chords.length;
+          }
+        }
+
+        // Start the music
+        musicPlaying = true;
+        startArpeggio();
+        scheduleBeat();
+        const mainIntervalId = setInterval(() => {
+          if (!musicPlaying || !soundEnabled) {
+            clearInterval(mainIntervalId);
+            clearInterval(arpIntervalId);
+            return;
+          }
+          scheduleBeat();
+        }, beatMs);
+
+        musicNodes = {
+          masterGain,
+          intervalId: mainIntervalId,
+          arpIntervalId
+        };
 
       } catch (e) {
-        console.log('MOD music error:', e);
+        console.log('Music error:', e);
       }
     }
 
     function stopBackgroundMusic() {
       musicPlaying = false;
-      if (fadeInterval) {
-        clearInterval(fadeInterval);
-        fadeInterval = null;
-      }
-      if (modPlayer) {
-        // Fade out over 300ms (15 steps x 20ms)
-        let vol = modPlayer.getMasterVolume();
-        const step = vol / 15;
-        fadeInterval = setInterval(() => {
-          vol -= step;
-          if (vol <= 0) {
-            clearInterval(fadeInterval);
-            fadeInterval = null;
-            try {
-              modPlayer.stop();
-              modPlayer.rewind();
-            } catch (e) {}
-          } else {
-            try { modPlayer.setMasterVolume(vol); } catch (e) {}
-          }
-        }, 20);
+      if (musicNodes) {
+        clearInterval(musicNodes.intervalId);
+        if (musicNodes.arpIntervalId) clearInterval(musicNodes.arpIntervalId);
+        try {
+          musicNodes.masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+        } catch (e) {}
+        musicNodes = null;
       }
     }
 
     function toggleBackgroundMusic(enabled) {
       if (enabled && !musicPlaying) {
-        startBackgroundMusic(currentTrackLevel);
+        startBackgroundMusic();
       } else if (!enabled) {
         stopBackgroundMusic();
       }
@@ -1327,34 +1444,110 @@
     const REGROWTH_AMOUNT = 15;
 
     // Level definitions with per-level theming
-    // Each level has unique colors and background; music comes from LEVEL_TRACKS MOD files
+    // Each level has unique colors, background, and C64-inspired original music
     const LEVELS = [
       {
         // Level 1: The original Skyrise tune - Am, Rob Hubbard style
         id: 1, name: 'Foundation', goal: 10, speedMult: 0.8, startWidth: 200,
         bgGradient: ['#0a0a15', '#1a1a2e', '#16213e', '#0f3460'],
-        colors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8B500', '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9']
+        colors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8B500', '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9'],
+        music: {
+          bpm: 140,
+          chords: (N) => [
+            { bass: N.A2, arp: [N.A3, N.C4, N.E4] },      // Am
+            { bass: N.F3, arp: [N.F3, N.A3, N.C4] },      // F
+            { bass: N.C3, arp: [N.C3, N.E3, N.G3] },      // C
+            { bass: N.G3, arp: [N.G3, N.B3, N.D4] }       // G
+          ],
+          melody: (N) => [
+            N.E5, N.E5, N.D5, N.C5, N.D5, N.E5, N.A4, 0,
+            N.E5, N.G5, N.A5, N.G5, N.E5, N.D5, N.C5, 0,
+            N.C5, N.D5, N.E5, N.G5, N.E5, N.D5, N.C5, N.D5,
+            N.E5, N.D5, N.C5, N.A4, N.G4, N.A4, 0, 0
+          ],
+          arpSpeed: 80
+        }
       },
       {
         // Level 2: G minor - Monty on the Run / Last Ninja style
         // Flowing, slightly melancholic, driving bass
         id: 2, name: 'Skyscraper', goal: 15, speedMult: 1.0, startWidth: 190,
         bgGradient: ['#0a1628', '#0f3460', '#1a5276', '#21618c'],
-        colors: ['#96CEB4', '#88D8B0', '#FFEAA7', '#DDA0DD', '#98D8C8', '#B5EAD7', '#C7CEEA', '#FFD93D', '#A8E6CF', '#95E1D3']
+        colors: ['#96CEB4', '#88D8B0', '#FFEAA7', '#DDA0DD', '#98D8C8', '#B5EAD7', '#C7CEEA', '#FFD93D', '#A8E6CF', '#95E1D3'],
+        music: {
+          bpm: 135,
+          chords: (N) => [
+            { bass: N.G3, arp: [N.G3, N.Bb3, N.D4] },     // Gm
+            { bass: N.Eb3, arp: [N.Eb4, N.G4, N.Bb4] },   // Eb
+            { bass: N.Bb2, arp: [N.Bb3, N.D4, N.F4] },    // Bb
+            { bass: N.F3, arp: [N.F3, N.A3, N.C4] }       // F
+          ],
+          melody: (N) => [
+            // Phrase 1 - descending with swing
+            N.D5, N.Bb4, N.D5, N.G5, N.F5, N.Eb5, N.D5, 0,
+            // Phrase 2 - rising response
+            N.Bb4, N.C5, N.D5, N.Eb5, N.F5, N.G5, N.F5, 0,
+            // Phrase 3 - tension building
+            N.G5, N.F5, N.Eb5, N.D5, N.C5, N.D5, N.Eb5, N.F5,
+            // Phrase 4 - resolution
+            N.G5, N.F5, N.Eb5, N.D5, N.Bb4, N.C5, N.D5, 0
+          ],
+          arpSpeed: 90
+        }
       },
       {
         // Level 3: E minor - Sanxion / Delta style
         // Dark, intense, fast arpeggios, chromatic tension
         id: 3, name: 'Stratosphere', goal: 20, speedMult: 1.2, startWidth: 180,
         bgGradient: ['#0a0015', '#1a0a2e', '#2a1a4e', '#3d1f6d'],
-        colors: ['#A855F7', '#8B5CF6', '#7C3AED', '#6366F1', '#818CF8', '#C084FC', '#E879F9', '#F0ABFC', '#67E8F9', '#22D3EE', '#06B6D4', '#A78BFA']
+        colors: ['#A855F7', '#8B5CF6', '#7C3AED', '#6366F1', '#818CF8', '#C084FC', '#E879F9', '#F0ABFC', '#67E8F9', '#22D3EE', '#06B6D4', '#A78BFA'],
+        music: {
+          bpm: 155,
+          chords: (N) => [
+            { bass: N.E3, arp: [N.E4, N.G4, N.B4] },      // Em
+            { bass: N.C3, arp: [N.C4, N.E4, N.G4] },      // C
+            { bass: N.D3, arp: [N.D4, N.Gb4, N.A4] },     // D (major, for tension)
+            { bass: N.B2, arp: [N.B3, N.Eb4, N.Gb4] }     // B (dominant, dark resolve)
+          ],
+          melody: (N) => [
+            // Phrase 1 - urgent, staccato
+            N.B5, N.E5, N.B5, N.G5, N.E5, N.Gb5, N.G5, 0,
+            // Phrase 2 - chromatic descent
+            N.B5, N.A5, N.Ab5, N.G5, N.Gb5, N.E5, N.D5, N.E5,
+            // Phrase 3 - driving push
+            N.G5, N.A5, N.B5, N.A5, N.G5, N.Gb5, N.E5, 0,
+            // Phrase 4 - dramatic finish
+            N.E5, N.Gb5, N.G5, N.A5, N.B5, N.G5, N.E5, 0
+          ],
+          arpSpeed: 55
+        }
       },
       {
         // Endless: Db minor - Commando / International Karate style
         // Epic, relentless, heroic, the "final boss" feel
         id: null, name: 'Endless', goal: Infinity, speedMult: 1.0, startWidth: 200,
         bgGradient: ['#1a0a00', '#2d1506', '#451a0a', '#5c1a0a'],
-        colors: ['#FF4500', '#FF6347', '#FF7F50', '#FFA500', '#FFD700', '#FF8C00', '#DC143C', '#FF1493', '#FFB347', '#FF6B6B', '#E74C3C', '#F39C12']
+        colors: ['#FF4500', '#FF6347', '#FF7F50', '#FFA500', '#FFD700', '#FF8C00', '#DC143C', '#FF1493', '#FFB347', '#FF6B6B', '#E74C3C', '#F39C12'],
+        music: {
+          bpm: 150,
+          chords: (N) => [
+            { bass: N.Db3, arp: [N.Db4, N.E4, N.Ab4] },   // Dbm (C#m)
+            { bass: N.A2, arp: [N.A3, N.Db4, N.E4] },     // A
+            { bass: N.B2, arp: [N.B3, N.Eb4, N.Gb4] },    // B
+            { bass: N.Ab3, arp: [N.Ab3, N.C4, N.Eb4] }    // Ab (G#) dominant
+          ],
+          melody: (N) => [
+            // Phrase 1 - heroic opening
+            N.Db5, N.E5, N.Ab5, N.E5, N.Db5, N.B4, N.Db5, 0,
+            // Phrase 2 - epic rising figure
+            N.E5, N.Gb5, N.Ab5, N.B5, N.Ab5, N.Gb5, N.E5, 0,
+            // Phrase 3 - relentless drive
+            N.Ab5, N.Gb5, N.E5, N.Db5, N.E5, N.Gb5, N.Ab5, N.B5,
+            // Phrase 4 - dramatic resolve
+            N.Ab5, N.Gb5, N.E5, N.Db5, N.B4, N.Db5, 0, 0
+          ],
+          arpSpeed: 65
+        }
       }
     ];
 
