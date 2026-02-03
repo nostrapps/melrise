@@ -1245,7 +1245,7 @@
             currentBlock.y += DROP_SPEED;
 
             // Target is the screen position where the new block should land
-            const targetScreenY = (lastBlock.y - BLOCK_HEIGHT) - state.cameraY;
+            const targetScreenY = (lastBlock.y - BLOCK_HEIGHT) + state.cameraY;
 
             if (currentBlock.y >= targetScreenY) {
               currentBlock.y = targetScreenY;
@@ -1336,11 +1336,15 @@
                   });
                 }
 
-                // Move camera up - keep top of tower at a comfortable screen position
-                const topBlockScreenY = canvas.height - (blocks.length * BLOCK_HEIGHT) - 50;
-                const desiredTopY = canvas.height * 0.6; // Keep top block at 60% down the screen
+                // Move camera - keep top of tower visible, base scrolls down off screen
+                const topBlock = blocks[blocks.length - 1];
+                const topBlockWorldY = topBlock.y;
+                const topBlockScreenY = topBlockWorldY + state.cameraY;
+                const desiredTopY = 200; // Keep top block near top of screen
+
+                // If top block would be above desired position, scroll down
                 if (topBlockScreenY < desiredTopY) {
-                  state.targetCameraY = desiredTopY - topBlockScreenY;
+                  state.targetCameraY = desiredTopY - topBlockWorldY;
                 }
               }
 
@@ -1372,7 +1376,7 @@
 
           // Draw stacked blocks
           blocks.forEach((block, i) => {
-            const y = block.y - state.cameraY;
+            const y = block.y + state.cameraY;
             if (y > -BLOCK_HEIGHT && y < canvas.height + BLOCK_HEIGHT) {
               ctx.fillStyle = getBlockColor(i);
               ctx.fillRect(block.x, y, block.width, block.height);

@@ -7,8 +7,7 @@ import { schnorr } from 'https://esm.sh/@noble/curves@1.7.0/secp256k1'
 
 const RELAYS = [
   'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://relay.nostr.band'
+  'wss://nos.lol'
 ]
 
 const GAME_ID = 'skyrise-nostrapps'
