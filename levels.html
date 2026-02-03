@@ -792,11 +792,21 @@
     }
 
     // Note frequencies lookup (shared across all levels)
+    // Extended with sharps/flats for richer key support
     const NOTE = {
-      A2: 110.00, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00,
-      A3: 220.00, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00,
-      A4: 440.00, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99,
-      A5: 880.00
+      // Octave 2
+      A2: 110.00, Bb2: 116.54, B2: 123.47,
+      // Octave 3
+      C3: 130.81, Db3: 138.59, D3: 146.83, Eb3: 155.56, E3: 164.81, F3: 174.61,
+      Gb3: 185.00, G3: 196.00, Ab3: 207.65, A3: 220.00, Bb3: 233.08, B3: 246.94,
+      // Octave 4
+      C4: 261.63, Db4: 277.18, D4: 293.66, Eb4: 311.13, E4: 329.63, F4: 349.23,
+      Gb4: 369.99, G4: 392.00, Ab4: 415.30, A4: 440.00, Bb4: 466.16, B4: 493.88,
+      // Octave 5
+      C5: 523.25, Db5: 554.37, D5: 587.33, Eb5: 622.25, E5: 659.25, F5: 698.46,
+      Gb5: 739.99, G5: 783.99, Ab5: 830.61, A5: 880.00, Bb5: 932.33, B5: 987.77,
+      // Octave 6
+      C6: 1046.50
     };
 
     // C64 SID-style Background Music Generator
@@ -1434,41 +1444,20 @@
     const REGROWTH_AMOUNT = 15;
 
     // Level definitions with per-level theming
+    // Each level has unique colors, background, and C64-inspired original music
     const LEVELS = [
       {
+        // Level 1: The original Skyrise tune - Am, Rob Hubbard style
         id: 1, name: 'Foundation', goal: 10, speedMult: 0.8, startWidth: 200,
-        bgGradient: ['#0a1628', '#0f3460', '#1a5276', '#21618c'],
-        colors: ['#96CEB4', '#88D8B0', '#FFEAA7', '#DDA0DD', '#98D8C8', '#B5EAD7', '#C7CEEA', '#FFD93D', '#A8E6CF', '#95E1D3'],
-        music: {
-          key: 'C major',
-          bpm: 120,
-          chords: (N) => [
-            { bass: N.C3, arp: [N.C4, N.E4, N.G4] },     // C
-            { bass: N.G3, arp: [N.G3, N.B3, N.D4] },     // G
-            { bass: N.A2, arp: [N.A3, N.C4, N.E4] },     // Am
-            { bass: N.F3, arp: [N.F3, N.A3, N.C4] }      // F
-          ],
-          melody: (N) => [
-            N.C5, N.E5, N.G5, N.E5, N.C5, N.D5, N.E5, 0,
-            N.G5, N.E5, N.D5, N.C5, N.D5, N.E5, N.C5, 0,
-            N.E5, N.G5, N.A5, N.G5, N.E5, N.D5, N.C5, N.D5,
-            N.E5, N.D5, N.C5, N.G4, N.A4, N.C5, 0, 0
-          ],
-          arpSpeed: 100
-        }
-      },
-      {
-        id: 2, name: 'Skyscraper', goal: 15, speedMult: 1.0, startWidth: 190,
         bgGradient: ['#0a0a15', '#1a1a2e', '#16213e', '#0f3460'],
         colors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8B500', '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9'],
         music: {
-          key: 'A minor',
           bpm: 140,
           chords: (N) => [
-            { bass: N.A2, arp: [N.A3, N.C4, N.E4] },     // Am
-            { bass: N.F3, arp: [N.F3, N.A3, N.C4] },     // F
-            { bass: N.C3, arp: [N.C3, N.E3, N.G3] },     // C
-            { bass: N.G3, arp: [N.G3, N.B3, N.D4] }      // G
+            { bass: N.A2, arp: [N.A3, N.C4, N.E4] },      // Am
+            { bass: N.F3, arp: [N.F3, N.A3, N.C4] },      // F
+            { bass: N.C3, arp: [N.C3, N.E3, N.G3] },      // C
+            { bass: N.G3, arp: [N.G3, N.B3, N.D4] }       // G
           ],
           melody: (N) => [
             N.E5, N.E5, N.D5, N.C5, N.D5, N.E5, N.A4, 0,
@@ -1480,47 +1469,84 @@
         }
       },
       {
+        // Level 2: G minor - Monty on the Run / Last Ninja style
+        // Flowing, slightly melancholic, driving bass
+        id: 2, name: 'Skyscraper', goal: 15, speedMult: 1.0, startWidth: 190,
+        bgGradient: ['#0a1628', '#0f3460', '#1a5276', '#21618c'],
+        colors: ['#96CEB4', '#88D8B0', '#FFEAA7', '#DDA0DD', '#98D8C8', '#B5EAD7', '#C7CEEA', '#FFD93D', '#A8E6CF', '#95E1D3'],
+        music: {
+          bpm: 135,
+          chords: (N) => [
+            { bass: N.G3, arp: [N.G3, N.Bb3, N.D4] },     // Gm
+            { bass: N.Eb3, arp: [N.Eb4, N.G4, N.Bb4] },   // Eb
+            { bass: N.Bb2, arp: [N.Bb3, N.D4, N.F4] },    // Bb
+            { bass: N.F3, arp: [N.F3, N.A3, N.C4] }       // F
+          ],
+          melody: (N) => [
+            // Phrase 1 - descending with swing
+            N.D5, N.Bb4, N.D5, N.G5, N.F5, N.Eb5, N.D5, 0,
+            // Phrase 2 - rising response
+            N.Bb4, N.C5, N.D5, N.Eb5, N.F5, N.G5, N.F5, 0,
+            // Phrase 3 - tension building
+            N.G5, N.F5, N.Eb5, N.D5, N.C5, N.D5, N.Eb5, N.F5,
+            // Phrase 4 - resolution
+            N.G5, N.F5, N.Eb5, N.D5, N.Bb4, N.C5, N.D5, 0
+          ],
+          arpSpeed: 90
+        }
+      },
+      {
+        // Level 3: E minor - Sanxion / Delta style
+        // Dark, intense, fast arpeggios, chromatic tension
         id: 3, name: 'Stratosphere', goal: 20, speedMult: 1.2, startWidth: 180,
         bgGradient: ['#0a0015', '#1a0a2e', '#2a1a4e', '#3d1f6d'],
         colors: ['#A855F7', '#8B5CF6', '#7C3AED', '#6366F1', '#818CF8', '#C084FC', '#E879F9', '#F0ABFC', '#67E8F9', '#22D3EE', '#06B6D4', '#A78BFA'],
         music: {
-          key: 'E minor',
-          bpm: 160,
+          bpm: 155,
           chords: (N) => [
-            { bass: N.E3, arp: [N.E4, N.G4, N.B4] },     // Em
-            { bass: N.C3, arp: [N.C4, N.E4, N.G4] },     // C
-            { bass: N.G3, arp: [N.G3, N.B3, N.D4] },     // G
-            { bass: N.D3, arp: [N.D4, N.F4, N.A4] }      // Dm
+            { bass: N.E3, arp: [N.E4, N.G4, N.B4] },      // Em
+            { bass: N.C3, arp: [N.C4, N.E4, N.G4] },      // C
+            { bass: N.D3, arp: [N.D4, N.Gb4, N.A4] },     // D (major, for tension)
+            { bass: N.B2, arp: [N.B3, N.Eb4, N.Gb4] }     // B (dominant, dark resolve)
           ],
           melody: (N) => [
-            N.B4, N.E5, N.G5, N.E5, N.B4, N.E5, N.G5, N.A5,
-            N.G5, N.E5, N.D5, N.E5, N.B4, 0, N.E5, 0,
-            N.G5, N.A5, N.G5, N.E5, N.D5, N.E5, N.G5, N.E5,
-            N.B4, N.D5, N.E5, N.D5, N.B4, N.A4, 0, 0
+            // Phrase 1 - urgent, staccato
+            N.B5, N.E5, N.B5, N.G5, N.E5, N.Gb5, N.G5, 0,
+            // Phrase 2 - chromatic descent
+            N.B5, N.A5, N.Ab5, N.G5, N.Gb5, N.E5, N.D5, N.E5,
+            // Phrase 3 - driving push
+            N.G5, N.A5, N.B5, N.A5, N.G5, N.Gb5, N.E5, 0,
+            // Phrase 4 - dramatic finish
+            N.E5, N.Gb5, N.G5, N.A5, N.B5, N.G5, N.E5, 0
           ],
-          arpSpeed: 65
+          arpSpeed: 55
         }
       },
       {
+        // Endless: Db minor - Commando / International Karate style
+        // Epic, relentless, heroic, the "final boss" feel
         id: null, name: 'Endless', goal: Infinity, speedMult: 1.0, startWidth: 200,
         bgGradient: ['#1a0a00', '#2d1506', '#451a0a', '#5c1a0a'],
         colors: ['#FF4500', '#FF6347', '#FF7F50', '#FFA500', '#FFD700', '#FF8C00', '#DC143C', '#FF1493', '#FFB347', '#FF6B6B', '#E74C3C', '#F39C12'],
         music: {
-          key: 'D minor',
           bpm: 150,
           chords: (N) => [
-            { bass: N.D3, arp: [N.D4, N.F4, N.A4] },     // Dm
-            { bass: N.A2, arp: [N.A3, N.C4, N.E4] },     // Am
-            { bass: N.F3, arp: [N.F3, N.A3, N.C4] },     // F
-            { bass: N.C3, arp: [N.C4, N.E4, N.G4] }      // C
+            { bass: N.Db3, arp: [N.Db4, N.E4, N.Ab4] },   // Dbm (C#m)
+            { bass: N.A2, arp: [N.A3, N.Db4, N.E4] },     // A
+            { bass: N.B2, arp: [N.B3, N.Eb4, N.Gb4] },    // B
+            { bass: N.Ab3, arp: [N.Ab3, N.C4, N.Eb4] }    // Ab (G#) dominant
           ],
           melody: (N) => [
-            N.D5, N.F5, N.A5, N.F5, N.D5, N.E5, N.F5, 0,
-            N.A5, N.G5, N.F5, N.E5, N.D5, N.F5, N.E5, 0,
-            N.D5, N.E5, N.F5, N.A5, N.G5, N.F5, N.E5, N.F5,
-            N.A5, N.G5, N.F5, N.D5, N.E5, N.D5, 0, 0
+            // Phrase 1 - heroic opening
+            N.Db5, N.E5, N.Ab5, N.E5, N.Db5, N.B4, N.Db5, 0,
+            // Phrase 2 - epic rising figure
+            N.E5, N.Gb5, N.Ab5, N.B5, N.Ab5, N.Gb5, N.E5, 0,
+            // Phrase 3 - relentless drive
+            N.Ab5, N.Gb5, N.E5, N.Db5, N.E5, N.Gb5, N.Ab5, N.B5,
+            // Phrase 4 - dramatic resolve
+            N.Ab5, N.Gb5, N.E5, N.Db5, N.B4, N.Db5, 0, 0
           ],
-          arpSpeed: 70
+          arpSpeed: 65
         }
       }
     ];
