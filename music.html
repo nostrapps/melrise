@@ -52,7 +52,7 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
       gap: 1.5rem;
       max-width: 1200px;
       margin: 0 auto;
@@ -98,11 +98,19 @@
       margin-bottom: 0.75rem;
     }
 
+    .song-instruments {
+      font-size: 0.75rem;
+      color: #7a7aaa;
+      margin-bottom: 0.5rem;
+      font-style: italic;
+    }
+
     .song-meta {
       display: flex;
-      gap: 1rem;
+      gap: 0.5rem;
       font-size: 0.75rem;
       color: #666;
+      flex-wrap: wrap;
     }
 
     .song-meta span {
@@ -138,7 +146,7 @@
 </head>
 <body>
   <h1>Skyrise Music Lab</h1>
-  <p class="subtitle">Click a song to play. C64 SID-style compositions.</p>
+  <p class="subtitle">Click a song to play. Each has unique instruments, waveforms & character.</p>
 
   <div id="now-playing" class="now-playing"></div>
 
@@ -163,16 +171,63 @@
       C6: 1046.50, D6: 1174.66, E6: 1318.51
     };
 
+    // ========== DEFAULT INSTRUMENT CONFIG ==========
+
+    const INST_DEFAULTS = {
+      bass: {
+        waveform: 'triangle',  // triangle, sawtooth, square, sine
+        gain: 0.5,
+        attack: 0.005,
+        sustain: 0.6,
+        release: 0.8,          // fraction of note duration
+        pattern: 'half',       // half, quarter, eighth, octave, walking, whole
+      },
+      lead: {
+        waveform: 'pulse',     // pulse, sawtooth, triangle, square, sine
+        pulseWidth: 0.25,      // for pulse waveform
+        gain: 0.35,
+        attack: 0.02,
+        sustain: 0.5,
+        release: 0.85,         // fraction of note duration
+        vibRate: 5,            // Hz, 0 = off
+        vibDepth: 0.02,        // fraction of frequency
+        filterFreq: 0,         // 0 = no filter
+        detune: 0,             // cents for second osc (0 = single osc)
+      },
+      arp: {
+        waveform: 'triangle',  // triangle, sawtooth, square, sine
+        gain: 0.18,
+        filterFreq: 1200,
+        filterQ: 1,
+        attack: 0.1,           // fraction of arp note
+        release: 0.95,
+      },
+      drums: {
+        enabled: false,
+        gain: 0.15,
+        pattern: 'none',       // none, basic, driving, march
+      }
+    };
+
+    function mergeInst(overrides) {
+      const result = {};
+      for (const key of Object.keys(INST_DEFAULTS)) {
+        result[key] = { ...INST_DEFAULTS[key], ...(overrides?.[key] || {}) };
+      }
+      return result;
+    }
+
     // ========== SONG DEFINITIONS ==========
 
     const SONGS = [
       {
         title: 'Skyrise Original',
-        key: 'A minor',
-        bpm: 140,
-        arpSpeed: 80,
+        key: 'A minor', bpm: 140, arpSpeed: 80,
         style: 'Rob Hubbard',
-        desc: 'The original Skyrise theme. Energetic, memorable, with that classic SID drive.',
+        desc: 'The original Skyrise theme. Classic SID pulse lead with triangle bass.',
+        instruments: {
+          // Pure classic SID - all defaults
+        },
         chords: [
           { bass: N.A2, arp: [N.A3, N.C4, N.E4] },
           { bass: N.F3, arp: [N.F3, N.A3, N.C4] },
@@ -188,11 +243,14 @@
       },
       {
         title: 'Night Runner',
-        key: 'G minor',
-        bpm: 135,
-        arpSpeed: 90,
+        key: 'G minor', bpm: 135, arpSpeed: 90,
         style: 'Last Ninja / Monty on the Run',
-        desc: 'Flowing and melancholic. Descending lines with a driving bass. Think midnight chase.',
+        desc: 'Sawtooth lead over walking bass. Dark, flowing, with filtered arps.',
+        instruments: {
+          bass: { waveform: 'sawtooth', pattern: 'walking', gain: 0.4, release: 0.6 },
+          lead: { waveform: 'sawtooth', attack: 0.04, sustain: 0.6, vibRate: 4, vibDepth: 0.025, filterFreq: 2500 },
+          arp: { waveform: 'sawtooth', filterFreq: 800, filterQ: 2, gain: 0.14 },
+        },
         chords: [
           { bass: N.G3, arp: [N.G3, N.Bb3, N.D4] },
           { bass: N.Eb3, arp: [N.Eb4, N.G4, N.Bb4] },
@@ -208,11 +266,14 @@
       },
       {
         title: 'Dark Horizon',
-        key: 'E minor',
-        bpm: 155,
-        arpSpeed: 55,
+        key: 'E minor', bpm: 155, arpSpeed: 55,
         style: 'Sanxion / Delta',
-        desc: 'Dark and intense. Chromatic tension with fast arpeggios. The pressure builds.',
+        desc: 'Thin reedy pulse over driving eighth-note sawtooth bass. Relentless energy.',
+        instruments: {
+          bass: { waveform: 'sawtooth', pattern: 'eighth', gain: 0.35, attack: 0.002, release: 0.5 },
+          lead: { waveform: 'pulse', pulseWidth: 0.1, attack: 0.005, sustain: 0.4, release: 0.6, vibRate: 7, vibDepth: 0.015 },
+          arp: { waveform: 'sawtooth', filterFreq: 2000, filterQ: 3, gain: 0.15 },
+        },
         chords: [
           { bass: N.E3, arp: [N.E4, N.G4, N.B4] },
           { bass: N.C3, arp: [N.C4, N.E4, N.G4] },
@@ -228,11 +289,15 @@
       },
       {
         title: 'Final Ascent',
-        key: 'Db minor',
-        bpm: 150,
-        arpSpeed: 65,
+        key: 'Db minor', bpm: 150, arpSpeed: 65,
         style: 'Commando / International Karate',
-        desc: 'Epic and relentless. Heroic lead over driving arpeggios. The final boss awaits.',
+        desc: 'Square wave lead with military march drums. Octave-jumping bass. Heroic.',
+        instruments: {
+          bass: { waveform: 'square', pattern: 'octave', gain: 0.35, attack: 0.003, release: 0.5 },
+          lead: { waveform: 'square', attack: 0.005, sustain: 0.7, release: 0.75, vibRate: 0, vibDepth: 0 },
+          arp: { waveform: 'triangle', filterFreq: 1500, filterQ: 1.5, gain: 0.16 },
+          drums: { enabled: true, pattern: 'march', gain: 0.18 },
+        },
         chords: [
           { bass: N.Db3, arp: [N.Db4, N.E4, N.Ab4] },
           { bass: N.A2, arp: [N.A3, N.Db4, N.E4] },
@@ -248,11 +313,14 @@
       },
       {
         title: 'Neon Streets',
-        key: 'C minor',
-        bpm: 130,
-        arpSpeed: 75,
+        key: 'C minor', bpm: 130, arpSpeed: 75,
         style: 'Cybernoid / Wizball',
-        desc: 'Moody and atmospheric. Pulsing bass with a winding melody. Neon-lit alleyways.',
+        desc: 'Fat pulse lead with pulsing eighth-note triangle bass. Moody filtered arps.',
+        instruments: {
+          bass: { waveform: 'triangle', pattern: 'eighth', gain: 0.45, release: 0.55 },
+          lead: { waveform: 'pulse', pulseWidth: 0.4, attack: 0.03, sustain: 0.55, vibRate: 4, vibDepth: 0.03, filterFreq: 3500 },
+          arp: { waveform: 'sawtooth', filterFreq: 900, filterQ: 2.5, gain: 0.12 },
+        },
         chords: [
           { bass: N.C3, arp: [N.C4, N.Eb4, N.G4] },
           { bass: N.Ab3, arp: [N.Ab3, N.C4, N.Eb4] },
@@ -268,11 +336,14 @@
       },
       {
         title: 'Stardust',
-        key: 'F major',
-        bpm: 125,
-        arpSpeed: 95,
+        key: 'F major', bpm: 125, arpSpeed: 95,
         style: 'Bubble Bobble / Paradroid',
-        desc: 'Bright and bouncy. Uplifting major key with a playful, catchy melody.',
+        desc: 'Soft triangle lead with bouncy staccato bass. Bright sparkling sawtooth arp.',
+        instruments: {
+          bass: { waveform: 'triangle', pattern: 'quarter', gain: 0.45, attack: 0.003, release: 0.35 },
+          lead: { waveform: 'triangle', attack: 0.01, sustain: 0.55, release: 0.7, vibRate: 6, vibDepth: 0.015 },
+          arp: { waveform: 'sawtooth', filterFreq: 2500, filterQ: 0.7, gain: 0.2 },
+        },
         chords: [
           { bass: N.F3, arp: [N.F3, N.A3, N.C4] },
           { bass: N.C3, arp: [N.C4, N.E4, N.G4] },
@@ -288,11 +359,14 @@
       },
       {
         title: 'Iron Pulse',
-        key: 'B minor',
-        bpm: 165,
-        arpSpeed: 50,
+        key: 'B minor', bpm: 165, arpSpeed: 50,
         style: 'Thrust / Uridium',
-        desc: 'Relentless and mechanical. Rapid-fire arpeggios with a hammering lead. Pure adrenaline.',
+        desc: 'Thick detuned pulse lead over driving sawtooth quarter bass. Metallic bright arps.',
+        instruments: {
+          bass: { waveform: 'sawtooth', pattern: 'quarter', gain: 0.4, attack: 0.002, release: 0.45 },
+          lead: { waveform: 'pulse', pulseWidth: 0.35, attack: 0.008, sustain: 0.6, release: 0.7, vibRate: 6, vibDepth: 0.02, detune: 12 },
+          arp: { waveform: 'sawtooth', filterFreq: 3000, filterQ: 2, gain: 0.16 },
+        },
         chords: [
           { bass: N.B2, arp: [N.B3, N.D4, N.Gb4] },
           { bass: N.G3, arp: [N.G3, N.B3, N.D4] },
@@ -308,11 +382,14 @@
       },
       {
         title: 'Ocean Drift',
-        key: 'D major',
-        bpm: 115,
-        arpSpeed: 110,
+        key: 'D major', bpm: 115, arpSpeed: 110,
         style: 'Ocean Loader / Hawkeye',
-        desc: 'Gentle and expansive. Warm major chords with a soaring, unhurried melody. Wide open spaces.',
+        desc: 'Ethereal sine lead with slow gentle bass. Warm sine arps float above. Spacious.',
+        instruments: {
+          bass: { waveform: 'sine', pattern: 'whole', gain: 0.55, attack: 0.05, sustain: 0.7, release: 0.9 },
+          lead: { waveform: 'sine', attack: 0.06, sustain: 0.65, release: 0.9, vibRate: 3, vibDepth: 0.01 },
+          arp: { waveform: 'sine', filterFreq: 3000, filterQ: 0.5, gain: 0.22 },
+        },
         chords: [
           { bass: N.D3, arp: [N.D4, N.Gb4, N.A4] },
           { bass: N.A2, arp: [N.A3, N.Db4, N.E4] },
@@ -328,11 +405,15 @@
       },
       {
         title: 'Voltage',
-        key: 'F minor',
-        bpm: 145,
-        arpSpeed: 70,
+        key: 'F minor', bpm: 145, arpSpeed: 70,
         style: 'Nemesis / Armalyte',
-        desc: 'Tense and electric. Minor key urgency with stabbing lead notes. Danger incoming.',
+        desc: 'Bright aggressive sawtooth lead. Punchy square bass with driving drums. Electric.',
+        instruments: {
+          bass: { waveform: 'square', pattern: 'quarter', gain: 0.35, attack: 0.002, release: 0.4 },
+          lead: { waveform: 'sawtooth', attack: 0.005, sustain: 0.45, release: 0.65, vibRate: 6, vibDepth: 0.025 },
+          arp: { waveform: 'sawtooth', filterFreq: 2200, filterQ: 2, gain: 0.14 },
+          drums: { enabled: true, pattern: 'basic', gain: 0.16 },
+        },
         chords: [
           { bass: N.F3, arp: [N.F3, N.Ab3, N.C4] },
           { bass: N.Db3, arp: [N.Db4, N.F4, N.Ab4] },
@@ -348,11 +429,14 @@
       },
       {
         title: 'Ghost Protocol',
-        key: 'Bb minor',
-        bpm: 138,
-        arpSpeed: 60,
+        key: 'Bb minor', bpm: 138, arpSpeed: 60,
         style: 'Forbidden Forest / Cauldron',
-        desc: 'Eerie and suspenseful. Haunting minor phrases with an unsettling edge. Something lurks.',
+        desc: 'Eerie triangle lead. Slow whole-note bass drones. Detuned arp creates unease.',
+        instruments: {
+          bass: { waveform: 'triangle', pattern: 'whole', gain: 0.5, attack: 0.08, sustain: 0.7, release: 0.95 },
+          lead: { waveform: 'triangle', attack: 0.04, sustain: 0.4, release: 0.8, vibRate: 3, vibDepth: 0.04 },
+          arp: { waveform: 'triangle', filterFreq: 600, filterQ: 3, gain: 0.2 },
+        },
         chords: [
           { bass: N.Bb2, arp: [N.Bb3, N.Db4, N.F4] },
           { bass: N.Gb3, arp: [N.Gb3, N.Bb3, N.Db4] },
@@ -371,11 +455,15 @@
 
       {
         title: 'Turrican Rising',
-        key: 'D minor',
-        bpm: 125,
-        arpSpeed: 70,
+        key: 'D minor', bpm: 125, arpSpeed: 70,
         style: 'Chris Huelsbeck / Turrican',
-        desc: 'Cinematic and heroic. The iconic 125 BPM Amiga tempo with sweeping lead over pulsing arpeggios. PWM-heavy.',
+        desc: 'Thick detuned pulse lead with sawtooth bass. Saw arps with filter sweep. Drums drive it forward.',
+        instruments: {
+          bass: { waveform: 'sawtooth', pattern: 'half', gain: 0.45, release: 0.75 },
+          lead: { waveform: 'pulse', pulseWidth: 0.3, attack: 0.015, sustain: 0.6, release: 0.85, vibRate: 5, vibDepth: 0.02, detune: 15 },
+          arp: { waveform: 'sawtooth', filterFreq: 1800, filterQ: 2, gain: 0.16 },
+          drums: { enabled: true, pattern: 'driving', gain: 0.14 },
+        },
         chords: [
           { bass: N.D3, arp: [N.D4, N.F4, N.A4] },
           { bass: N.Bb2, arp: [N.Bb3, N.D4, N.F4] },
@@ -391,11 +479,14 @@
       },
       {
         title: 'Shadow Realm',
-        key: 'Ab minor',
-        bpm: 108,
-        arpSpeed: 120,
+        key: 'Ab minor', bpm: 108, arpSpeed: 120,
         style: 'David Whittaker / Shadow of the Beast',
-        desc: 'Atmospheric and otherworldly. Slow, hypnotic arpeggios with a haunting melody. Korg M1 vibes.',
+        desc: 'Atmospheric sine lead. Very slow sine bass. Gentle sine arps. Otherworldly and hypnotic.',
+        instruments: {
+          bass: { waveform: 'sine', pattern: 'whole', gain: 0.5, attack: 0.1, sustain: 0.75, release: 0.95 },
+          lead: { waveform: 'sine', attack: 0.08, sustain: 0.6, release: 0.9, vibRate: 2.5, vibDepth: 0.015 },
+          arp: { waveform: 'sine', filterFreq: 2000, filterQ: 0.5, gain: 0.22 },
+        },
         chords: [
           { bass: N.Ab3, arp: [N.Ab3, N.B3, N.Eb4] },
           { bass: N.E3, arp: [N.E3, N.Ab3, N.B3] },
@@ -411,11 +502,14 @@
       },
       {
         title: 'Flipper Frenzy',
-        key: 'A major',
-        bpm: 132,
-        arpSpeed: 85,
+        key: 'A major', bpm: 132, arpSpeed: 85,
         style: 'Olof Gustafsson / Pinball Dreams',
-        desc: 'Bouncy and energetic. Bright major key with playful octave jumps. Pure tracker joy.',
+        desc: 'Bright sawtooth lead with bouncy octave-jumping triangle bass. Fast bright arps.',
+        instruments: {
+          bass: { waveform: 'triangle', pattern: 'octave', gain: 0.5, attack: 0.003, release: 0.45 },
+          lead: { waveform: 'sawtooth', attack: 0.008, sustain: 0.5, release: 0.7, vibRate: 5, vibDepth: 0.02 },
+          arp: { waveform: 'sawtooth', filterFreq: 2800, filterQ: 1, gain: 0.18 },
+        },
         chords: [
           { bass: N.A2, arp: [N.A3, N.Db4, N.E4] },
           { bass: N.E3, arp: [N.E4, N.Ab4, N.B4] },
@@ -431,11 +525,14 @@
       },
       {
         title: 'Andalusian Descent',
-        key: 'A minor',
-        bpm: 125,
-        arpSpeed: 75,
+        key: 'A minor', bpm: 125, arpSpeed: 75,
         style: 'Andalusian Cadence (i-bVII-bVI-V)',
-        desc: 'The most dramatic progression in chiptune history. Descending tension with resolving dominant. Used by Hubbard, Galway, and countless others.',
+        desc: 'Classic pulse lead with quarter-note bass descent. The most dramatic SID progression.',
+        instruments: {
+          bass: { waveform: 'triangle', pattern: 'quarter', gain: 0.5, release: 0.55 },
+          lead: { waveform: 'pulse', pulseWidth: 0.2, attack: 0.015, sustain: 0.5, release: 0.8, vibRate: 5, vibDepth: 0.02 },
+          arp: { waveform: 'triangle', filterFreq: 1400, filterQ: 1, gain: 0.18 },
+        },
         chords: [
           { bass: N.A2, arp: [N.A3, N.C4, N.E4] },
           { bass: N.G3, arp: [N.G3, N.B3, N.D4] },
@@ -451,11 +548,14 @@
       },
       {
         title: 'Second Reality',
-        key: 'C minor',
-        bpm: 125,
-        arpSpeed: 60,
+        key: 'C minor', bpm: 125, arpSpeed: 60,
         style: 'Purple Motion / Future Crew Demoscene',
-        desc: 'Epic demoscene composition. Driving minor key with rapid arpeggios and a soaring melody that builds to a climax.',
+        desc: 'Massive detuned sawtooth lead. Powerful sawtooth bass. Everything bright and wide open.',
+        instruments: {
+          bass: { waveform: 'sawtooth', pattern: 'half', gain: 0.45, release: 0.7 },
+          lead: { waveform: 'sawtooth', attack: 0.01, sustain: 0.55, release: 0.8, vibRate: 4.5, vibDepth: 0.02, detune: 18 },
+          arp: { waveform: 'sawtooth', filterFreq: 2500, filterQ: 1.5, gain: 0.15 },
+        },
         chords: [
           { bass: N.C3, arp: [N.C4, N.Eb4, N.G4] },
           { bass: N.Bb2, arp: [N.Bb3, N.D4, N.F4] },
@@ -471,11 +571,15 @@
       },
       {
         title: 'Lotus Rush',
-        key: 'E minor',
-        bpm: 142,
-        arpSpeed: 68,
+        key: 'E minor', bpm: 142, arpSpeed: 68,
         style: 'Barry Leitch / Lotus Turbo Challenge',
-        desc: 'High-speed racing energy. Driving sixteenths in the arp with an urgent, forward-pushing melody. Pedal to the metal.',
+        desc: 'Thin urgent pulse lead. Driving eighth-note sawtooth bass. Fast arps with drums. Pedal to metal.',
+        instruments: {
+          bass: { waveform: 'sawtooth', pattern: 'eighth', gain: 0.35, attack: 0.002, release: 0.4 },
+          lead: { waveform: 'pulse', pulseWidth: 0.15, attack: 0.005, sustain: 0.4, release: 0.6, vibRate: 6, vibDepth: 0.015 },
+          arp: { waveform: 'sawtooth', filterFreq: 2200, filterQ: 1.5, gain: 0.14 },
+          drums: { enabled: true, pattern: 'driving', gain: 0.13 },
+        },
         chords: [
           { bass: N.E3, arp: [N.E4, N.G4, N.B4] },
           { bass: N.D3, arp: [N.D4, N.Gb4, N.A4] },
@@ -491,11 +595,14 @@
       },
       {
         title: 'Alien Depths',
-        key: 'F# minor',
-        bpm: 118,
-        arpSpeed: 88,
+        key: 'F# minor', bpm: 118, arpSpeed: 88,
         style: 'Allister Brimble / Alien Breed',
-        desc: 'Tense and atmospheric. Gritty synth layers with a creeping melody. Something moves in the dark corridors.',
+        desc: 'Detuned square lead creates an unsettling buzz. Slow sine bass. Dark muffled arps. Creepy.',
+        instruments: {
+          bass: { waveform: 'sine', pattern: 'half', gain: 0.5, attack: 0.04, sustain: 0.65, release: 0.85 },
+          lead: { waveform: 'square', attack: 0.02, sustain: 0.45, release: 0.75, vibRate: 3, vibDepth: 0.035, detune: 10 },
+          arp: { waveform: 'triangle', filterFreq: 500, filterQ: 3, gain: 0.2 },
+        },
         chords: [
           { bass: N.Gb3, arp: [N.Gb3, N.A3, N.Db4] },
           { bass: N.D3, arp: [N.D4, N.Gb4, N.A4] },
@@ -511,11 +618,15 @@
       },
       {
         title: 'Cannon March',
-        key: 'G major',
-        bpm: 125,
-        arpSpeed: 95,
+        key: 'G major', bpm: 125, arpSpeed: 95,
         style: 'Richard Joseph / Cannon Fodder',
-        desc: 'Jaunty and ironic. Major key with a military march feel but a playful undertone. War has never been so fun.',
+        desc: 'Square lead with march bass and snare drums. Military but playful. Jaunty.',
+        instruments: {
+          bass: { waveform: 'square', pattern: 'octave', gain: 0.35, attack: 0.003, release: 0.4 },
+          lead: { waveform: 'square', attack: 0.008, sustain: 0.6, release: 0.7, vibRate: 0, vibDepth: 0 },
+          arp: { waveform: 'triangle', filterFreq: 1600, filterQ: 1, gain: 0.17 },
+          drums: { enabled: true, pattern: 'march', gain: 0.2 },
+        },
         chords: [
           { bass: N.G3, arp: [N.G3, N.B3, N.D4] },
           { bass: N.C3, arp: [N.C4, N.E4, N.G4] },
@@ -531,11 +642,14 @@
       },
       {
         title: 'Crystal Caves',
-        key: 'Eb major',
-        bpm: 120,
-        arpSpeed: 100,
+        key: 'Eb major', bpm: 120, arpSpeed: 100,
         style: 'Demoscene / Crystal Symphonies',
-        desc: 'Sparkling and ethereal. Warm major arpeggios with a melody that floats above. Echoes in crystalline chambers.',
+        desc: 'Pure sine lead floats above gentle triangle bass. Bright high triangle arps sparkle.',
+        instruments: {
+          bass: { waveform: 'triangle', pattern: 'half', gain: 0.45, attack: 0.03, sustain: 0.6, release: 0.85 },
+          lead: { waveform: 'sine', attack: 0.04, sustain: 0.6, release: 0.88, vibRate: 4, vibDepth: 0.012 },
+          arp: { waveform: 'triangle', filterFreq: 4000, filterQ: 0.5, gain: 0.22 },
+        },
         chords: [
           { bass: N.Eb3, arp: [N.Eb4, N.G4, N.Bb4] },
           { bass: N.Ab3, arp: [N.Ab3, N.C4, N.Eb4] },
@@ -551,11 +665,14 @@
       },
       {
         title: 'Lemming Walk',
-        key: 'C major',
-        bpm: 128,
-        arpSpeed: 90,
+        key: 'C major', bpm: 128, arpSpeed: 90,
         style: 'Tim Wright / Lemmings',
-        desc: 'Cheerful and quirky. The kind of tune that loops endlessly in your head. Simple, catchy, impossible to forget.',
+        desc: 'Bright pulse lead with bouncy quarter bass. Cheerful, catchy, loops in your head forever.',
+        instruments: {
+          bass: { waveform: 'triangle', pattern: 'quarter', gain: 0.5, attack: 0.003, release: 0.4 },
+          lead: { waveform: 'pulse', pulseWidth: 0.2, attack: 0.01, sustain: 0.5, release: 0.75, vibRate: 5, vibDepth: 0.018 },
+          arp: { waveform: 'triangle', filterFreq: 2000, filterQ: 0.7, gain: 0.2 },
+        },
         chords: [
           { bass: N.C3, arp: [N.C4, N.E4, N.G4] },
           { bass: N.G3, arp: [N.G3, N.B3, N.D4] },
@@ -584,17 +701,41 @@
       return audioCtx;
     }
 
-    function createPulseOsc(ctx, freq, pulseWidth = 0.25) {
+    // Pulse wave via custom periodic wave (SID-style)
+    function createPulseOsc(ctx, freq, pw) {
       const osc = ctx.createOscillator();
       const real = new Float32Array(32);
       const imag = new Float32Array(32);
       real[0] = 0; imag[0] = 0;
       for (let i = 1; i < 32; i++) {
-        imag[i] = (2 / (i * Math.PI)) * Math.sin(i * Math.PI * pulseWidth);
+        imag[i] = (2 / (i * Math.PI)) * Math.sin(i * Math.PI * pw);
       }
       osc.setPeriodicWave(ctx.createPeriodicWave(real, imag));
       osc.frequency.value = freq;
       return osc;
+    }
+
+    // Create oscillator with configurable waveform
+    function createOsc(ctx, waveform, freq, pulseWidth) {
+      if (waveform === 'pulse') {
+        return createPulseOsc(ctx, freq, pulseWidth || 0.25);
+      }
+      const osc = ctx.createOscillator();
+      osc.type = waveform;
+      osc.frequency.value = freq;
+      return osc;
+    }
+
+    // Shared noise buffer (created once, reused)
+    let noiseBuffer = null;
+    function getNoiseBuffer(ctx) {
+      if (!noiseBuffer || noiseBuffer.sampleRate !== ctx.sampleRate) {
+        const size = ctx.sampleRate * 0.2;
+        noiseBuffer = ctx.createBuffer(1, size, ctx.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+      }
+      return noiseBuffer;
     }
 
     function playSong(index) {
@@ -604,7 +745,6 @@
       currentSongIndex = index;
       musicPlaying = true;
 
-      // Update UI
       document.querySelectorAll('.song-card').forEach((c, i) => {
         c.classList.toggle('playing', i === index);
       });
@@ -612,14 +752,15 @@
 
       try {
         const ctx = getAudioContext();
+        const inst = mergeInst(song.instruments);
 
+        // Master chain
         const compressor = ctx.createDynamicsCompressor();
         compressor.threshold.value = -20;
         compressor.knee.value = 10;
         compressor.ratio.value = 4;
         compressor.connect(ctx.destination);
 
-        // Analyser for visualizer
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 64;
         analyser.connect(compressor);
@@ -628,96 +769,259 @@
         masterGain.gain.value = 0.25;
         masterGain.connect(analyser);
 
+        // Channel gains
         const bassGain = ctx.createGain();
-        bassGain.gain.value = 0.5;
+        bassGain.gain.value = inst.bass.gain;
         bassGain.connect(masterGain);
 
         const arpGain = ctx.createGain();
-        arpGain.gain.value = 0.18;
+        arpGain.gain.value = inst.arp.gain;
         arpGain.connect(masterGain);
 
         const leadGain = ctx.createGain();
-        leadGain.gain.value = 0.35;
+        leadGain.gain.value = inst.lead.gain;
         leadGain.connect(masterGain);
+
+        const drumsGain = ctx.createGain();
+        drumsGain.gain.value = inst.drums.gain;
+        drumsGain.connect(masterGain);
+
+        // Arp filter
+        const arpFilter = ctx.createBiquadFilter();
+        arpFilter.type = 'lowpass';
+        arpFilter.frequency.value = inst.arp.filterFreq;
+        arpFilter.Q.value = inst.arp.filterQ;
+        arpFilter.connect(arpGain);
 
         const { chords, melody, bpm, arpSpeed } = song;
         const beatMs = 60000 / bpm;
+        const beatSec = beatMs / 1000;
+        const halfBeat = beatSec / 2;
 
         let chordIndex = 0, beatInChord = 0, melodyIndex = 0, arpNoteIndex = 0;
 
-        function playBass(freq, duration) {
-          const osc = ctx.createOscillator();
+        // ---- BASS ----
+        function playBass(freq, duration, offset) {
+          const t = ctx.currentTime + (offset || 0);
+          const osc = createOsc(ctx, inst.bass.waveform, freq, 0.3);
           const env = ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.value = freq;
           osc.connect(env);
           env.connect(bassGain);
-          const now = ctx.currentTime;
-          env.gain.setValueAtTime(0.8, now);
-          env.gain.setValueAtTime(0.6, now + 0.05);
-          env.gain.exponentialRampToValueAtTime(0.01, now + duration - 0.05);
-          osc.start(now);
-          osc.stop(now + duration);
+          env.gain.setValueAtTime(0, t);
+          env.gain.linearRampToValueAtTime(0.8, t + inst.bass.attack);
+          env.gain.setValueAtTime(inst.bass.sustain, t + inst.bass.attack + 0.01);
+          env.gain.exponentialRampToValueAtTime(0.01, t + duration * inst.bass.release);
+          osc.start(t);
+          osc.stop(t + duration);
         }
 
-        function playLead(freq, duration) {
+        // ---- LEAD ----
+        function playLead(freq, duration, offset) {
           if (freq === 0) return;
-          const osc = createPulseOsc(ctx, freq, 0.15 + Math.random() * 0.2);
+          const t = ctx.currentTime + (offset || 0);
+          const lc = inst.lead;
+
+          // Primary oscillator
+          const osc1 = createOsc(ctx, lc.waveform, freq, lc.pulseWidth + (Math.random() * 0.04 - 0.02));
           const env = ctx.createGain();
-          const vibrato = ctx.createOscillator();
-          const vibratoGain = ctx.createGain();
-          vibrato.frequency.value = 5;
-          vibratoGain.gain.value = freq * 0.02;
-          vibrato.connect(vibratoGain);
-          vibratoGain.connect(osc.frequency);
-          osc.connect(env);
+
+          // Vibrato
+          if (lc.vibRate > 0) {
+            const vib = ctx.createOscillator();
+            const vibG = ctx.createGain();
+            vib.frequency.value = lc.vibRate;
+            vibG.gain.value = freq * lc.vibDepth;
+            vib.connect(vibG);
+            vibG.connect(osc1.frequency);
+            vib.start(t);
+            vib.stop(t + duration);
+          }
+
+          // Optional filter
+          let lastNode = osc1;
+          if (lc.filterFreq > 0) {
+            const flt = ctx.createBiquadFilter();
+            flt.type = 'lowpass';
+            flt.frequency.value = lc.filterFreq;
+            flt.Q.value = 1;
+            osc1.connect(flt);
+            lastNode = flt;
+          }
+          lastNode.connect(env);
           env.connect(leadGain);
-          const now = ctx.currentTime;
-          env.gain.setValueAtTime(0, now);
-          env.gain.linearRampToValueAtTime(0.7, now + 0.02);
-          env.gain.setValueAtTime(0.5, now + 0.08);
-          env.gain.exponentialRampToValueAtTime(0.01, now + duration - 0.02);
-          vibrato.start(now);
-          osc.start(now);
-          vibrato.stop(now + duration);
-          osc.stop(now + duration);
+
+          // Envelope
+          env.gain.setValueAtTime(0, t);
+          env.gain.linearRampToValueAtTime(0.7, t + lc.attack);
+          env.gain.setValueAtTime(lc.sustain, t + lc.attack + 0.01);
+          env.gain.exponentialRampToValueAtTime(0.01, t + duration * lc.release);
+          osc1.start(t);
+          osc1.stop(t + duration);
+
+          // Detuned second oscillator for thickness
+          if (lc.detune > 0) {
+            const osc2 = createOsc(ctx, lc.waveform, freq, lc.pulseWidth);
+            osc2.detune.value = lc.detune;
+            const env2 = ctx.createGain();
+            let lastNode2 = osc2;
+            if (lc.filterFreq > 0) {
+              const flt2 = ctx.createBiquadFilter();
+              flt2.type = 'lowpass';
+              flt2.frequency.value = lc.filterFreq;
+              osc2.connect(flt2);
+              lastNode2 = flt2;
+            }
+            lastNode2.connect(env2);
+            env2.connect(leadGain);
+            env2.gain.setValueAtTime(0, t);
+            env2.gain.linearRampToValueAtTime(0.45, t + lc.attack);
+            env2.gain.setValueAtTime(lc.sustain * 0.65, t + lc.attack + 0.01);
+            env2.gain.exponentialRampToValueAtTime(0.01, t + duration * lc.release);
+            osc2.start(t);
+            osc2.stop(t + duration);
+          }
         }
 
-        const arpFilter = ctx.createBiquadFilter();
-        arpFilter.type = 'lowpass';
-        arpFilter.frequency.value = 1200;
-        arpFilter.Q.value = 1;
-        arpFilter.connect(arpGain);
-
+        // ---- ARP ----
         const arpIntervalId = setInterval(() => {
           if (!musicPlaying) { clearInterval(arpIntervalId); return; }
           const chord = chords[chordIndex];
           const freq = chord.arp[arpNoteIndex % chord.arp.length];
           arpNoteIndex++;
-          const osc = ctx.createOscillator();
+          const osc = createOsc(ctx, inst.arp.waveform, freq, 0.25);
           const env = ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.value = freq;
           osc.connect(env);
           env.connect(arpFilter);
           const now = ctx.currentTime;
-          const duration = arpSpeed / 1000;
+          const dur = arpSpeed / 1000;
           env.gain.setValueAtTime(0, now);
-          env.gain.linearRampToValueAtTime(0.5, now + duration * 0.1);
-          env.gain.setValueAtTime(0.4, now + duration * 0.3);
-          env.gain.exponentialRampToValueAtTime(0.01, now + duration * 0.95);
+          env.gain.linearRampToValueAtTime(0.5, now + dur * inst.arp.attack);
+          env.gain.setValueAtTime(0.4, now + dur * 0.3);
+          env.gain.exponentialRampToValueAtTime(0.01, now + dur * inst.arp.release);
           osc.start(now);
-          osc.stop(now + duration);
+          osc.stop(now + dur);
         }, arpSpeed);
 
+        // ---- DRUMS ----
+        function playKick(time, g) {
+          const osc = ctx.createOscillator();
+          const env = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(150, time);
+          osc.frequency.exponentialRampToValueAtTime(40, time + 0.12);
+          env.gain.setValueAtTime(g, time);
+          env.gain.exponentialRampToValueAtTime(0.01, time + 0.18);
+          osc.connect(env);
+          env.connect(drumsGain);
+          osc.start(time);
+          osc.stop(time + 0.2);
+        }
+
+        function playSnare(time, g) {
+          const noise = ctx.createBufferSource();
+          noise.buffer = getNoiseBuffer(ctx);
+          const flt = ctx.createBiquadFilter();
+          flt.type = 'bandpass';
+          flt.frequency.value = 1200;
+          flt.Q.value = 0.6;
+          const env = ctx.createGain();
+          env.gain.setValueAtTime(g * 0.8, time);
+          env.gain.exponentialRampToValueAtTime(0.01, time + 0.12);
+          noise.connect(flt);
+          flt.connect(env);
+          env.connect(drumsGain);
+          noise.start(time);
+          noise.stop(time + 0.15);
+
+          // Tone body
+          const osc = ctx.createOscillator();
+          osc.type = 'triangle';
+          osc.frequency.value = 200;
+          const env2 = ctx.createGain();
+          env2.gain.setValueAtTime(g * 0.4, time);
+          env2.gain.exponentialRampToValueAtTime(0.01, time + 0.06);
+          osc.connect(env2);
+          env2.connect(drumsGain);
+          osc.start(time);
+          osc.stop(time + 0.08);
+        }
+
+        function playHihat(time, g) {
+          const noise = ctx.createBufferSource();
+          noise.buffer = getNoiseBuffer(ctx);
+          const flt = ctx.createBiquadFilter();
+          flt.type = 'highpass';
+          flt.frequency.value = 8000;
+          const env = ctx.createGain();
+          env.gain.setValueAtTime(g * 0.35, time);
+          env.gain.exponentialRampToValueAtTime(0.01, time + 0.04);
+          noise.connect(flt);
+          flt.connect(env);
+          env.connect(drumsGain);
+          noise.start(time);
+          noise.stop(time + 0.06);
+        }
+
+        function playDrumBeat(beat) {
+          const time = ctx.currentTime;
+          const g = inst.drums.gain;
+          const dp = inst.drums.pattern;
+
+          if (dp === 'basic') {
+            if (beat === 0 || beat === 2) playKick(time, g);
+            if (beat === 1 || beat === 3) playSnare(time, g * 0.7);
+            playHihat(time, g * 0.5);
+            playHihat(time + halfBeat, g * 0.3);
+          } else if (dp === 'driving') {
+            playKick(time, g);
+            if (beat === 1 || beat === 3) playSnare(time, g * 0.6);
+            playHihat(time, g * 0.45);
+            playHihat(time + halfBeat, g * 0.35);
+          } else if (dp === 'march') {
+            if (beat === 0 || beat === 2) playKick(time, g);
+            if (beat === 2) playSnare(time + 0.01, g * 0.5);
+            if (beat === 3) playSnare(time, g * 0.8);
+          }
+        }
+
+        // ---- MAIN BEAT SCHEDULER ----
         function scheduleBeat() {
           if (!musicPlaying) return;
           const chord = chords[chordIndex];
-          if (beatInChord === 0 || beatInChord === 2) {
-            playBass(chord.bass, beatMs / 1000 * 1.8);
+          const nextChord = chords[(chordIndex + 1) % chords.length];
+
+          // === BASS ===
+          const bp = inst.bass.pattern;
+          if (bp === 'half') {
+            if (beatInChord === 0 || beatInChord === 2)
+              playBass(chord.bass, beatSec * 1.8);
+          } else if (bp === 'quarter') {
+            playBass(chord.bass, beatSec * 0.8);
+          } else if (bp === 'eighth') {
+            playBass(chord.bass, halfBeat * 0.7, 0);
+            playBass(chord.bass, halfBeat * 0.7, halfBeat);
+          } else if (bp === 'octave') {
+            if (beatInChord % 2 === 0) playBass(chord.bass, beatSec * 0.7);
+            else playBass(chord.bass * 2, beatSec * 0.7);
+          } else if (bp === 'walking') {
+            if (beatInChord === 0) playBass(chord.bass, beatSec * 0.75);
+            else if (beatInChord === 1) playBass(chord.arp[0], beatSec * 0.75);
+            else if (beatInChord === 2) playBass(chord.bass, beatSec * 0.75);
+            else playBass(nextChord.bass * 0.9439, beatSec * 0.75); // chromatic approach
+          } else if (bp === 'whole') {
+            if (beatInChord === 0) playBass(chord.bass, beatSec * 3.5);
           }
-          playLead(melody[melodyIndex], beatMs / 1000 * 0.9);
+
+          // === LEAD ===
+          playLead(melody[melodyIndex], beatSec * 0.9);
           melodyIndex = (melodyIndex + 1) % melody.length;
+
+          // === DRUMS ===
+          if (inst.drums.enabled && inst.drums.pattern !== 'none') {
+            playDrumBeat(beatInChord);
+          }
+
+          // Advance beat
           beatInChord++;
           if (beatInChord >= 4) {
             beatInChord = 0;
@@ -732,8 +1036,6 @@
         }, beatMs);
 
         musicNodes = { masterGain, mainIntervalId, arpIntervalId, analyser };
-
-        // Start visualizer
         startVisualizer(analyser);
 
       } catch (e) {
@@ -754,7 +1056,6 @@
       }
       document.querySelectorAll('.song-card').forEach(c => c.classList.remove('playing'));
       document.getElementById('now-playing').textContent = '';
-      // Reset viz bars
       vizBars.forEach(bar => bar.style.height = '2px');
     }
 
@@ -773,7 +1074,6 @@
 
     function startVisualizer(analyser) {
       const data = new Uint8Array(analyser.frequencyBinCount);
-
       function draw() {
         if (!musicPlaying) return;
         analyser.getByteFrequencyData(data);
@@ -789,6 +1089,17 @@
 
     // ========== UI ==========
 
+    function describeInstruments(inst) {
+      const i = mergeInst(inst);
+      const parts = [];
+      parts.push(i.lead.waveform + ' lead');
+      if (i.lead.detune > 0) parts[0] = 'detuned ' + parts[0];
+      parts.push(i.bass.waveform + ' ' + i.bass.pattern + ' bass');
+      parts.push(i.arp.waveform + ' arp');
+      if (i.drums.enabled) parts.push(i.drums.pattern + ' drums');
+      return parts.join(' · ');
+    }
+
     function renderGrid() {
       const grid = document.getElementById('grid');
       SONGS.forEach((song, i) => {
@@ -802,6 +1113,7 @@
           <div class="song-title">${song.title}</div>
           <div class="song-key">${song.key} - ${song.style}</div>
           <div class="song-desc">${song.desc}</div>
+          <div class="song-instruments">${describeInstruments(song.instruments)}</div>
           <div class="song-meta">
             <span>${song.bpm} BPM</span>
             <span>Arp: ${song.arpSpeed}ms</span>
