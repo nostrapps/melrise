@@ -221,7 +221,7 @@
         bassGain.connect(masterGain);
 
         const arpGain = ctx.createGain();
-        arpGain.gain.value = 0.25;
+        arpGain.gain.value = 0.18;
         arpGain.connect(masterGain);
 
         const leadGain = ctx.createGain();
@@ -238,11 +238,12 @@
 
         // Chord progression: Am - F - C - G (i - VI - III - VII in A minor)
         // Classic dramatic game music progression
+        // Using lower octave for smoother arpeggio
         const chords = [
-          { bass: NOTE.A2, arp: [NOTE.A4, NOTE.C5, NOTE.E5] },      // Am
-          { bass: NOTE.F3, arp: [NOTE.F4, NOTE.A4, NOTE.C5] },      // F
-          { bass: NOTE.C3, arp: [NOTE.C4, NOTE.E4, NOTE.G4] },      // C
-          { bass: NOTE.G3, arp: [NOTE.G4, NOTE.B4, NOTE.D5] }       // G
+          { bass: NOTE.A2, arp: [NOTE.A3, NOTE.C4, NOTE.E4] },      // Am
+          { bass: NOTE.F3, arp: [NOTE.F3, NOTE.A3, NOTE.C4] },      // F
+          { bass: NOTE.C3, arp: [NOTE.C3, NOTE.E3, NOTE.G3] },      // C
+          { bass: NOTE.G3, arp: [NOTE.G3, NOTE.B3, NOTE.D4] }       // G
         ];
 
         // Lead melody (Rob Hubbard style - energetic, memorable)
@@ -259,7 +260,7 @@
 
         const BPM = 140; // Upbeat tempo like classic C64 games
         const beatMs = 60000 / BPM;
-        const arpSpeed = 25; // ~40Hz arpeggio rate (SID style fake chords)
+        const arpSpeed = 80; // Slower, smoother arpeggio (12.5Hz)
 
         let chordIndex = 0;
         let beatInChord = 0;
@@ -327,9 +328,16 @@
           osc.stop(now + duration);
         }
 
-        // Fast arpeggio (50Hz SID style chord simulation)
+        // Smooth arpeggio with filter for warm sound
         let arpIntervalId = null;
         function startArpeggio() {
+          // Create a shared filter for warmth
+          const arpFilter = ctx.createBiquadFilter();
+          arpFilter.type = 'lowpass';
+          arpFilter.frequency.value = 1200;
+          arpFilter.Q.value = 1;
+          arpFilter.connect(arpGain);
+
           arpIntervalId = setInterval(() => {
             if (!musicPlaying || !soundEnabled) {
               clearInterval(arpIntervalId);
@@ -341,16 +349,20 @@
 
             const osc = ctx.createOscillator();
             const env = ctx.createGain();
-            osc.type = 'square';
+            osc.type = 'triangle'; // Softer waveform
             osc.frequency.value = freq;
             osc.connect(env);
-            env.connect(arpGain);
+            env.connect(arpFilter);
 
             const now = ctx.currentTime;
-            env.gain.setValueAtTime(0.4, now);
-            env.gain.exponentialRampToValueAtTime(0.01, now + arpSpeed / 1000 * 0.9);
+            const duration = arpSpeed / 1000;
+            // Soft attack and release
+            env.gain.setValueAtTime(0, now);
+            env.gain.linearRampToValueAtTime(0.5, now + duration * 0.1);
+            env.gain.setValueAtTime(0.4, now + duration * 0.3);
+            env.gain.exponentialRampToValueAtTime(0.01, now + duration * 0.95);
             osc.start(now);
-            osc.stop(now + arpSpeed / 1000);
+            osc.stop(now + duration);
           }, arpSpeed);
         }
 
