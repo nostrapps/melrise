@@ -1315,6 +1315,27 @@
       ctx.globalAlpha = 1;
     }
 
+    // Screen shake - trigger with intensity (0-1 scale)
+    function triggerScreenShake(state, intensity) {
+      state.shakeIntensity = Math.min(state.shakeIntensity + intensity, 1.5);
+    }
+
+    // Update screen shake - returns current offset, decays over time
+    function updateScreenShake(state) {
+      if (state.shakeIntensity > 0.01) {
+        // Random offset based on intensity
+        const maxOffset = state.shakeIntensity * 12;
+        state.shakeX = (Math.random() - 0.5) * maxOffset * 2;
+        state.shakeY = (Math.random() - 0.5) * maxOffset * 2;
+        // Quick decay for snappy feel
+        state.shakeIntensity *= 0.85;
+      } else {
+        state.shakeIntensity = 0;
+        state.shakeX = 0;
+        state.shakeY = 0;
+      }
+    }
+
     function TowerGame() {
       const canvasRef = useRef(null);
       const gameStateRef = useRef(null);
@@ -1471,7 +1492,10 @@
           particles: [],
           glowIntensity: 0,
           stars: createStars(width, height),
-          debris: []
+          debris: [],
+          shakeIntensity: 0,
+          shakeX: 0,
+          shakeY: 0
         };
 
         setScore(0);
@@ -1557,12 +1581,14 @@
                 // Complete miss
                 playSound('fail');
                 haptic('fail');
+                triggerScreenShake(state, 0.6);
                 setHealth(h => {
                   const newHealth = h - 1;
                   if (newHealth <= 0) {
                     stopBackgroundMusic();
                     playSound('gameover');
                     haptic('gameover');
+                    triggerScreenShake(state, 1.0);
                     setGamePhase('gameover');
                     if (score > highScore) {
                       setHighScore(score);
@@ -1596,6 +1622,9 @@
 
                   // Haptic feedback
                   haptic(currentStreak >= 3 ? 'streak' : 'perfect');
+
+                  // Light satisfying shake on perfect
+                  triggerScreenShake(state, 0.15 + Math.min(currentStreak * 0.05, 0.25));
 
                   // Spawn particles and trigger glow!
                   const particleColor = getBlockColor(blocks.length);
@@ -1648,6 +1677,10 @@
 
                   // Haptic feedback
                   haptic('land');
+
+                  // Screen shake based on how much was cut off (bigger cut = bigger shake)
+                  const cutRatio = 1 - (overlapWidth / currentBlock.width);
+                  triggerScreenShake(state, 0.2 + cutRatio * 0.4);
 
                   // Small particle burst on normal landing
                   const particleColor = getBlockColor(blocks.length);
@@ -1728,8 +1761,15 @@
           // Update stars (parallax)
           updateStars(state.stars, state.cameraY, deltaCamera, canvas.height);
 
+          // Update screen shake
+          updateScreenShake(state);
+
           // Render
           ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          // Apply screen shake offset
+          ctx.save();
+          ctx.translate(state.shakeX, state.shakeY);
 
           // Draw gradient background
           const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -1849,6 +1889,9 @@
             ctx.stroke();
             ctx.setLineDash([]);
           }
+
+          // Restore from screen shake transform
+          ctx.restore();
 
           animationRef.current = requestAnimationFrame(gameLoop);
         };
