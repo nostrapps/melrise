@@ -142,6 +142,127 @@
       border-radius: 2px;
       transition: height 0.1s;
     }
+
+    /* Tracker section */
+    .section-divider {
+      max-width: 1200px;
+      margin: 3rem auto 1rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 2rem;
+    }
+
+    .section-divider h2 {
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .section-divider .subtitle {
+      margin-bottom: 1.5rem;
+    }
+
+    .tracker-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: transform 0.2s, border-color 0.3s, background 0.3s;
+    }
+
+    .tracker-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .tracker-card.playing {
+      border-color: #F7DC6F;
+      background: rgba(247, 220, 111, 0.1);
+      box-shadow: 0 0 20px rgba(247, 220, 111, 0.2);
+    }
+
+    .tracker-card .song-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 0.25rem; }
+    .tracker-card .song-key { font-size: 0.85rem; color: #F7DC6F; margin-bottom: 0.5rem; }
+    .tracker-card .song-desc { font-size: 0.85rem; color: #aaa; line-height: 1.4; margin-bottom: 0.75rem; }
+    .tracker-card .song-meta { display: flex; gap: 0.5rem; font-size: 0.75rem; color: #666; flex-wrap: wrap; }
+    .tracker-card .song-meta span { background: rgba(255,255,255,0.1); padding: 0.25rem 0.5rem; border-radius: 4px; }
+
+    .tracker-card .license-tag {
+      display: inline-block;
+      font-size: 0.65rem;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+
+    .license-pd { background: rgba(78, 205, 196, 0.3); color: #4ECDC4; }
+    .license-ref { background: rgba(231, 76, 60, 0.3); color: #e74c3c; }
+
+    .custom-url-section {
+      max-width: 1200px;
+      margin: 2rem auto;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .custom-url-section input {
+      flex: 1;
+      min-width: 300px;
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      color: #fff;
+      outline: none;
+    }
+
+    .custom-url-section input:focus {
+      border-color: #F7DC6F;
+    }
+
+    .custom-url-section button {
+      padding: 0.75rem 1.5rem;
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: #fff;
+      background: #F7DC6F;
+      color: #1a1a2e;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .tracker-status {
+      max-width: 1200px;
+      margin: 0 auto 1rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #F7DC6F;
+      min-height: 1.3rem;
+    }
+
+    .tracker-controls {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .tracker-controls button {
+      padding: 0.5rem 1.5rem;
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+    }
+
+    .btn-stop-tracker { background: #e74c3c; }
+    .btn-stop-tracker:hover { opacity: 0.85; }
   </style>
 </head>
 <body>
@@ -157,6 +278,25 @@
   </div>
 
   <div class="grid" id="grid"></div>
+
+  <!-- ========== TRACKER TUNES SECTION ========== -->
+  <div class="section-divider">
+    <h2>Classic Tracker Tunes</h2>
+    <p class="subtitle">Real MOD/XM files played via libopenmpt. Hear how the originals actually sounded.</p>
+  </div>
+
+  <div id="tracker-status" class="tracker-status"></div>
+
+  <div class="tracker-controls">
+    <button class="btn-stop-tracker" onclick="window.stopTracker?.()">Stop Tracker</button>
+  </div>
+
+  <div class="grid" id="tracker-grid"></div>
+
+  <div class="custom-url-section">
+    <input type="text" id="custom-url" placeholder="Paste a modarchive.org URL or direct .mod/.xm link..." />
+    <button onclick="window.playCustomURL?.()">Play URL</button>
+  </div>
 
   <script>
     // Note frequencies
@@ -740,6 +880,7 @@
 
     function playSong(index) {
       stopMusic();
+      if (window.stopTracker) window.stopTracker();
 
       const song = SONGS[index];
       currentSongIndex = index;
@@ -1126,6 +1267,223 @@
 
     initVisualizer();
     renderGrid();
+  </script>
+
+  <!-- ========== TRACKER PLAYER (chiptune3 / libopenmpt) ========== -->
+  <script type="module">
+    import { ChiptuneJsPlayer } from 'https://drsnuggles.github.io/chiptune/chiptune3.js';
+
+    // Tracker tune definitions
+    const TRACKER_TUNES = [
+      // === PUBLIC DOMAIN (usable in games) ===
+      {
+        title: '4_RNDD!',
+        author: 'Drozerix',
+        format: 'XM',
+        size: '39 KB',
+        license: 'pd',
+        desc: 'Energetic chiptune. One of the best-rated public domain tracks on ModArchive.',
+        url: 'https://api.modarchive.org/downloads.php?moduleid=172898',
+      },
+      {
+        title: 'bitshift',
+        author: 'neurosys',
+        format: 'XM',
+        size: '8 KB',
+        license: 'pd',
+        desc: 'Minimal 4-channel chip. Tiny file, pure tracker craft.',
+        url: 'https://api.modarchive.org/downloads.php?moduleid=166135',
+      },
+      {
+        title: '8-bit Castle',
+        author: 'JAM',
+        format: 'MOD',
+        size: '57 KB',
+        license: 'pd',
+        desc: 'Classic game-style chiptune. Perfect for a platformer or puzzle game.',
+        url: 'https://api.modarchive.org/downloads.php?moduleid=195782',
+      },
+      {
+        title: 'Chip Overture',
+        author: 'M0n50n',
+        format: 'XM',
+        size: '59 KB',
+        license: 'pd',
+        desc: 'Cinematic chiptune overture. Rich and layered despite chip limitations.',
+        url: 'https://api.modarchive.org/downloads.php?moduleid=172185',
+      },
+      {
+        title: 'Augmented Emotions',
+        author: 'M0n50n',
+        format: 'XM',
+        size: '75 KB',
+        license: 'pd',
+        desc: 'Emotional chiptune journey. 8/10 rated on ModArchive.',
+        url: 'https://api.modarchive.org/downloads.php?moduleid=172184',
+      },
+      {
+        title: 'Bionic Girl',
+        author: 'Drozerix',
+        format: 'XM',
+        size: '80 KB',
+        license: 'pd',
+        desc: 'Bright energetic 4-channel chip. Great for action games.',
+        url: 'https://api.modarchive.org/downloads.php?moduleid=174416',
+      },
+
+      // === REFERENCE (copyrighted, for inspiration only) ===
+      {
+        title: 'Hybrid Song 2:20',
+        author: 'Quazar',
+        format: 'XM',
+        size: '50 KB',
+        license: 'ref',
+        desc: 'Legendary ModArchive "Spotlit" track. 9/10 rated. This is what great tracker music sounds like.',
+        url: 'https://api.modarchive.org/downloads.php?moduleid=66187',
+      },
+      {
+        title: 'LUCiD Keygen #2',
+        author: 'dubmood',
+        format: 'XM',
+        size: '20 KB',
+        license: 'ref',
+        desc: 'Iconic crackscene chiptune by dubmood. 25 favorites. Pure SID energy.',
+        url: 'https://api.modarchive.org/downloads.php?moduleid=36583',
+      },
+      {
+        title: '5985',
+        author: 'maktone',
+        format: 'XM',
+        size: '14 KB',
+        license: 'ref',
+        desc: 'Competition winner by maktone. 14KB of perfection. Proof that less is more.',
+        url: 'https://api.modarchive.org/downloads.php?moduleid=54826',
+      },
+      {
+        title: 'CHIPTUNE',
+        author: '4-mat',
+        format: 'MOD',
+        size: '27 KB',
+        license: 'ref',
+        desc: 'Classic by 4-mat (Matt Simmonds). One of the most influential chip composers of the Amiga era.',
+        url: 'https://api.modarchive.org/downloads.php?moduleid=36874',
+      },
+    ];
+
+    let player = null;
+    let trackerPlaying = false;
+    let currentTrackerIndex = -1;
+
+    // Initialize player
+    try {
+      player = new ChiptuneJsPlayer({ repeatCount: -1 });
+    } catch (e) {
+      console.error('Failed to init chiptune3:', e);
+      document.getElementById('tracker-status').textContent = 'Failed to load tracker player. Try refreshing.';
+    }
+
+    async function playTrackerTune(index) {
+      const tune = TRACKER_TUNES[index];
+      await playTrackerURL(tune.url, tune.title, index);
+    }
+
+    async function playTrackerURL(url, title, cardIndex) {
+      // Stop everything
+      stopTrackerInternal();
+      if (typeof stopMusic === 'function') stopMusic();
+
+      if (!player) {
+        document.getElementById('tracker-status').textContent = 'Player not loaded.';
+        return;
+      }
+
+      const statusEl = document.getElementById('tracker-status');
+      statusEl.textContent = `Loading ${title || url}...`;
+
+      // Update card highlighting
+      document.querySelectorAll('.tracker-card').forEach((c, i) => {
+        c.classList.toggle('playing', i === cardIndex);
+      });
+
+      try {
+        // Fetch the file ourselves to handle CORS
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const buffer = await resp.arrayBuffer();
+
+        player.play(buffer);
+        trackerPlaying = true;
+        currentTrackerIndex = cardIndex ?? -1;
+        statusEl.textContent = `Now playing: ${title || 'Custom track'}`;
+
+        player.onEnded(() => {
+          // Loop: play again
+          try { player.play(buffer); } catch(e) {}
+        });
+
+      } catch (e) {
+        console.error('Tracker load error:', e);
+        statusEl.textContent = `Failed to load: ${e.message}. CORS may be blocking modarchive.org.`;
+        document.querySelectorAll('.tracker-card').forEach(c => c.classList.remove('playing'));
+      }
+    }
+
+    function stopTrackerInternal() {
+      if (player) {
+        try { player.stop(); } catch(e) {}
+      }
+      trackerPlaying = false;
+      currentTrackerIndex = -1;
+      document.querySelectorAll('.tracker-card').forEach(c => c.classList.remove('playing'));
+      document.getElementById('tracker-status').textContent = '';
+    }
+
+    // Expose to global scope
+    window.stopTracker = stopTrackerInternal;
+
+    window.playCustomURL = async function() {
+      const input = document.getElementById('custom-url');
+      let url = input.value.trim();
+      if (!url) return;
+
+      // Convert modarchive page URLs to API download URLs
+      const match = url.match(/moduleid=(\d+)/);
+      if (match) {
+        url = `https://api.modarchive.org/downloads.php?moduleid=${match[1]}`;
+      }
+
+      await playTrackerURL(url, 'Custom track', -1);
+    };
+
+    // Render tracker grid
+    function renderTrackerGrid() {
+      const grid = document.getElementById('tracker-grid');
+      TRACKER_TUNES.forEach((tune, i) => {
+        const card = document.createElement('div');
+        card.className = 'tracker-card';
+        card.onclick = () => {
+          if (currentTrackerIndex === i && trackerPlaying) stopTrackerInternal();
+          else playTrackerTune(i);
+        };
+
+        const licenseTag = tune.license === 'pd'
+          ? '<span class="license-tag license-pd">Public Domain</span>'
+          : '<span class="license-tag license-ref">Reference Only</span>';
+
+        card.innerHTML = `
+          <div class="song-title">${tune.title} ${licenseTag}</div>
+          <div class="song-key">${tune.author} - ${tune.format}</div>
+          <div class="song-desc">${tune.desc}</div>
+          <div class="song-meta">
+            <span>${tune.size}</span>
+            <span>${tune.format}</span>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    renderTrackerGrid();
   </script>
 </body>
 </html>
