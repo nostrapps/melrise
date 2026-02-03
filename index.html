@@ -130,6 +130,127 @@
       }
     }
 
+    .combo-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .streak-text {
+      font-size: 1.5rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      animation: streakPop 0.8s ease-out forwards;
+    }
+
+    .streak-2 { color: #4ECDC4; text-shadow: 0 0 15px #4ECDC4; }
+    .streak-3 { color: #FFD700; text-shadow: 0 0 20px #FFD700; font-size: 1.8rem; }
+    .streak-5 { color: #FF6B6B; text-shadow: 0 0 25px #FF6B6B; font-size: 2.2rem; }
+    .streak-7 { color: #FF00FF; text-shadow: 0 0 30px #FF00FF; font-size: 2.5rem; }
+    .streak-10 { color: #00FFFF; text-shadow: 0 0 40px #00FFFF, 0 0 60px #00FFFF; font-size: 3rem; }
+
+    @keyframes streakPop {
+      0% {
+        opacity: 1;
+        transform: scale(0.3) rotate(-10deg);
+      }
+      30% {
+        transform: scale(1.3) rotate(5deg);
+      }
+      50% {
+        transform: scale(1) rotate(0deg);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(1.5) translateY(-30px);
+      }
+    }
+
+    .combo-number {
+      font-size: 4rem;
+      font-weight: bold;
+      color: #fff;
+      animation: comboPulse 0.5s ease-out forwards;
+    }
+
+    @keyframes comboPulse {
+      0% {
+        transform: scale(2);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.1);
+      }
+      100% {
+        transform: scale(1);
+        opacity: 0;
+      }
+    }
+
+    .multiplier-display {
+      position: absolute;
+      top: 60px;
+      left: 20px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #4ECDC4;
+      text-shadow: 0 0 10px #4ECDC4;
+      z-index: 5;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .multiplier-display.active {
+      opacity: 1;
+    }
+
+    .screen-flash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 4;
+      animation: flashEffect 0.3s ease-out forwards;
+    }
+
+    .flash-gold { background: radial-gradient(circle, rgba(255,215,0,0.4) 0%, transparent 70%); }
+    .flash-fire { background: radial-gradient(circle, rgba(255,107,107,0.5) 0%, transparent 70%); }
+    .flash-epic { background: radial-gradient(circle, rgba(255,0,255,0.5) 0%, transparent 70%); }
+    .flash-legendary { background: radial-gradient(circle, rgba(0,255,255,0.6) 0%, transparent 70%); }
+
+    @keyframes flashEffect {
+      0% { opacity: 1; transform: scale(0.8); }
+      100% { opacity: 0; transform: scale(1.5); }
+    }
+
+    .shake {
+      animation: shakeEffect 0.3s ease-out;
+    }
+
+    @keyframes shakeEffect {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+
+    .shake-heavy {
+      animation: shakeHeavy 0.4s ease-out;
+    }
+
+    @keyframes shakeHeavy {
+      0%, 100% { transform: translate(0, 0); }
+      10%, 50%, 90% { transform: translate(-8px, -3px); }
+      30%, 70% { transform: translate(8px, 3px); }
+      40%, 60% { transform: translate(-5px, 5px); }
+      80% { transform: translate(5px, -5px); }
+    }
+
     .final-score {
       font-size: 4rem;
       font-weight: bold;
@@ -468,7 +589,7 @@
             break;
 
           case 'perfect':
-            // Chime sound - ascending arpeggio
+            // Simple chime for first perfect
             const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
             notes.forEach((freq, i) => {
               const osc = ctx.createOscillator();
@@ -483,7 +604,7 @@
               osc.start(now + i * 0.08);
               osc.stop(now + i * 0.08 + 0.3);
             });
-            return; // Early return since we handled multiple oscillators
+            return;
 
           case 'fail':
             // Buzz/error sound
@@ -530,6 +651,90 @@
       }
     }
 
+    // Streak-based sound effects - escalates with combo!
+    function playStreakSound(streak) {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        // Base pitch increases with streak
+        const basePitch = 400 + (streak * 50);
+
+        if (streak === 2) {
+          // Double! - Quick double chime
+          [0, 0.1].forEach((delay, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = basePitch + (i * 200);
+            gain.gain.setValueAtTime(0, now + delay);
+            gain.gain.linearRampToValueAtTime(0.25, now + delay + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.2);
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.2);
+          });
+        } else if (streak === 3) {
+          // Triple! - Triumphant chord
+          [1, 1.25, 1.5].forEach((mult, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = basePitch * mult;
+            gain.gain.setValueAtTime(0, now + i * 0.05);
+            gain.gain.linearRampToValueAtTime(0.2, now + i * 0.05 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.05 + 0.4);
+            osc.start(now + i * 0.05);
+            osc.stop(now + i * 0.05 + 0.4);
+          });
+        } else if (streak >= 5 && streak < 10) {
+          // On Fire! - Rising arpeggio with power
+          const fireNotes = [1, 1.25, 1.5, 2];
+          fireNotes.forEach((mult, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'square';
+            osc.frequency.value = basePitch * mult;
+            gain.gain.setValueAtTime(0, now + i * 0.06);
+            gain.gain.linearRampToValueAtTime(0.15, now + i * 0.06 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.06 + 0.3);
+            osc.start(now + i * 0.06);
+            osc.stop(now + i * 0.06 + 0.3);
+          });
+        } else if (streak >= 10) {
+          // LEGENDARY! - Epic fanfare
+          const epicNotes = [1, 1.25, 1.5, 1.25, 1.5, 2];
+          epicNotes.forEach((mult, i) => {
+            const osc = ctx.createOscillator();
+            const osc2 = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            osc2.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sawtooth';
+            osc2.type = 'sine';
+            osc.frequency.value = basePitch * mult;
+            osc2.frequency.value = basePitch * mult * 2;
+            gain.gain.setValueAtTime(0, now + i * 0.08);
+            gain.gain.linearRampToValueAtTime(0.12, now + i * 0.08 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.5);
+            osc.start(now + i * 0.08);
+            osc2.start(now + i * 0.08);
+            osc.stop(now + i * 0.08 + 0.5);
+            osc2.stop(now + i * 0.08 + 0.5);
+          });
+        }
+      } catch (e) {
+        // Audio not supported
+      }
+    }
+
     // Game constants
     const BLOCK_HEIGHT = 30;
     const INITIAL_BLOCK_WIDTH = 200;
@@ -564,6 +769,20 @@
         return parseInt(localStorage.getItem('towerHighScore') || '0');
       });
       const [soundOn, setSoundOn] = useState(true);
+      const [streak, setStreak] = useState(0);
+      const [streakText, setStreakText] = useState('');
+      const [showFlash, setShowFlash] = useState('');
+      const [shake, setShake] = useState('');
+
+      // Get streak message and class
+      const getStreakInfo = (count) => {
+        if (count >= 10) return { text: 'LEGENDARY!', class: 'streak-10', flash: 'flash-legendary' };
+        if (count >= 7) return { text: 'UNSTOPPABLE!', class: 'streak-7', flash: 'flash-epic' };
+        if (count >= 5) return { text: 'ON FIRE!', class: 'streak-5', flash: 'flash-fire' };
+        if (count >= 3) return { text: 'AMAZING!', class: 'streak-3', flash: 'flash-gold' };
+        if (count >= 2) return { text: 'NICE!', class: 'streak-2', flash: 'flash-gold' };
+        return { text: '', class: '', flash: '' };
+      };
 
       const toggleSound = () => {
         soundEnabled = !soundEnabled;
@@ -696,17 +915,40 @@
                   return newHealth;
                 });
                 state.perfectStreak = 0;
+                setStreak(0);
               } else {
                 // Successful stack
                 const isPerfect = Math.abs(currentBlock.x - lastBlock.x) < PERFECT_THRESHOLD;
 
                 if (isPerfect) {
-                  playSound('perfect');
                   state.perfectStreak++;
-                  const bonus = POINTS_PERFECT + (state.perfectStreak - 1) * 10;
+                  const currentStreak = state.perfectStreak;
+                  const bonus = POINTS_PERFECT + (currentStreak - 1) * 10;
                   setScore(s => s + bonus);
-                  setShowPerfect(true);
-                  setTimeout(() => setShowPerfect(false), 600);
+                  setStreak(currentStreak);
+
+                  // Play sound - basic perfect or streak sound
+                  if (currentStreak >= 2) {
+                    playStreakSound(currentStreak);
+                  } else {
+                    playSound('perfect');
+                  }
+
+                  // Visual feedback based on streak
+                  const info = getStreakInfo(currentStreak);
+                  if (info.text) {
+                    setStreakText(info.text);
+                    setShowFlash(info.flash);
+                    setShake(currentStreak >= 5 ? 'shake-heavy' : 'shake');
+                    setTimeout(() => {
+                      setStreakText('');
+                      setShowFlash('');
+                      setShake('');
+                    }, 800);
+                  } else {
+                    setShowPerfect(true);
+                    setTimeout(() => setShowPerfect(false), 600);
+                  }
 
                   // Perfect keeps same width
                   blocks.push({
@@ -718,6 +960,7 @@
                 } else {
                   playSound('land');
                   state.perfectStreak = 0;
+                  setStreak(0);
                   setScore(s => s + POINTS_NORMAL);
 
                   // Cut the block
@@ -866,8 +1109,10 @@
       }
 
       // Render playing screen
+      const streakInfo = getStreakInfo(streak);
+
       return html`
-        <div>
+        <div class=${shake}>
           <canvas
             ref=${canvasRef}
             onClick=${handleTap}
@@ -879,7 +1124,19 @@
             ${Array(health).fill('❤️').join('')}
             ${Array(MAX_HEALTH - health).fill('🖤').join('')}
           </div>
+          ${streak >= 2 && html`
+            <div class="multiplier-display active">
+              ${streak}x COMBO
+            </div>
+          `}
           ${showPerfect && html`<div class="perfect-text">PERFECT!</div>`}
+          ${streakText && html`
+            <div class="combo-container">
+              <div class="combo-number">${streak}x</div>
+              <div class="streak-text ${streakInfo.class}">${streakText}</div>
+            </div>
+          `}
+          ${showFlash && html`<div class="screen-flash ${showFlash}"></div>`}
           <${SoundButton} />
         </div>
       `;
