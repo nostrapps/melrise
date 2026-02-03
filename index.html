@@ -369,6 +369,61 @@
       margin-top: 1rem;
     }
 
+    .level-indicator {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: rgba(255, 255, 255, 0.6);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      z-index: 5;
+    }
+
+    .level-progress {
+      position: absolute;
+      top: 45px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+      z-index: 5;
+      overflow: hidden;
+    }
+
+    .level-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4ECDC4, #45B7D1);
+      border-radius: 2px;
+      transition: width 0.3s ease-out;
+    }
+
+    .level-complete-title {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #4ECDC4;
+      text-shadow: 0 0 30px #4ECDC4;
+      margin-bottom: 0.5rem;
+      animation: scoreReveal 0.5s ease-out;
+    }
+
+    .level-name {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #ffd700;
+      margin-bottom: 0.5rem;
+    }
+
+    .level-next-preview {
+      font-size: 1rem;
+      color: #aaa;
+      margin-bottom: 1.5rem;
+    }
+
     .btn-row {
       display: flex;
       gap: 1rem;
@@ -736,10 +791,30 @@
       return audioCtx;
     }
 
+    // Note frequencies lookup (shared across all levels)
+    // Extended with sharps/flats for richer key support
+    const NOTE = {
+      // Octave 2
+      A2: 110.00, Bb2: 116.54, B2: 123.47,
+      // Octave 3
+      C3: 130.81, Db3: 138.59, D3: 146.83, Eb3: 155.56, E3: 164.81, F3: 174.61,
+      Gb3: 185.00, G3: 196.00, Ab3: 207.65, A3: 220.00, Bb3: 233.08, B3: 246.94,
+      // Octave 4
+      C4: 261.63, Db4: 277.18, D4: 293.66, Eb4: 311.13, E4: 329.63, F4: 349.23,
+      Gb4: 369.99, G4: 392.00, Ab4: 415.30, A4: 440.00, Bb4: 466.16, B4: 493.88,
+      // Octave 5
+      C5: 523.25, Db5: 554.37, D5: 587.33, Eb5: 622.25, E5: 659.25, F5: 698.46,
+      Gb5: 739.99, G5: 783.99, Ab5: 830.61, A5: 880.00, Bb5: 932.33, B5: 987.77,
+      // Octave 6
+      C6: 1046.50
+    };
+
     // C64 SID-style Background Music Generator
     // Inspired by Rob Hubbard, Martin Galway, Ben Daglish
-    function startBackgroundMusic() {
+    function startBackgroundMusic(levelIndex = 0) {
       if (musicPlaying || !soundEnabled) return;
+
+      const levelMusic = LEVELS[levelIndex].music;
 
       try {
         const ctx = getAudioContext();
@@ -768,39 +843,12 @@
         leadGain.gain.value = 0.35;
         leadGain.connect(masterGain);
 
-        // Note frequencies (A minor - classic game music key)
-        const NOTE = {
-          A2: 110.00, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00,
-          A3: 220.00, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00,
-          A4: 440.00, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99,
-          A5: 880.00
-        };
-
-        // Chord progression: Am - F - C - G (i - VI - III - VII in A minor)
-        // Classic dramatic game music progression
-        // Using lower octave for smoother arpeggio
-        const chords = [
-          { bass: NOTE.A2, arp: [NOTE.A3, NOTE.C4, NOTE.E4] },      // Am
-          { bass: NOTE.F3, arp: [NOTE.F3, NOTE.A3, NOTE.C4] },      // F
-          { bass: NOTE.C3, arp: [NOTE.C3, NOTE.E3, NOTE.G3] },      // C
-          { bass: NOTE.G3, arp: [NOTE.G3, NOTE.B3, NOTE.D4] }       // G
-        ];
-
-        // Lead melody (Rob Hubbard style - energetic, memorable)
-        const melody = [
-          // Phrase 1
-          NOTE.E5, NOTE.E5, NOTE.D5, NOTE.C5, NOTE.D5, NOTE.E5, NOTE.A4, 0,
-          // Phrase 2
-          NOTE.E5, NOTE.G5, NOTE.A5, NOTE.G5, NOTE.E5, NOTE.D5, NOTE.C5, 0,
-          // Phrase 3
-          NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5, NOTE.E5, NOTE.D5, NOTE.C5, NOTE.D5,
-          // Phrase 4
-          NOTE.E5, NOTE.D5, NOTE.C5, NOTE.A4, NOTE.G4, NOTE.A4, 0, 0
-        ];
-
-        const BPM = 140; // Upbeat tempo like classic C64 games
+        // Get level-specific music data
+        const chords = levelMusic.chords(NOTE);
+        const melody = levelMusic.melody(NOTE);
+        const BPM = levelMusic.bpm;
         const beatMs = 60000 / BPM;
-        const arpSpeed = 80; // Slower, smoother arpeggio (12.5Hz)
+        const arpSpeed = levelMusic.arpSpeed;
 
         let chordIndex = 0;
         let beatInChord = 0;
@@ -1333,6 +1381,30 @@
       }
     }
 
+    // Level complete sound - triumphant fanfare
+    function playLevelCompleteSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const fanfare = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50, 1318.51];
+        fanfare.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          const delay = i * 0.1;
+          gain.gain.setValueAtTime(0, now + delay);
+          gain.gain.linearRampToValueAtTime(0.2, now + delay + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.35);
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.35);
+        });
+      } catch (e) {}
+    }
+
     // Regrowth sound - satisfying "power up" feel
     function playRegrowthSound() {
       if (!soundEnabled) return;
@@ -1368,18 +1440,128 @@
     const POINTS_NORMAL = 25;
     const POINTS_PERFECT = 50;
     const PERFECT_THRESHOLD = 5;
-    const REGROWTH_STREAK_THRESHOLD = 3;  // Perfects needed before regrowth starts
-    const REGROWTH_AMOUNT = 15;           // Pixels added per perfect after threshold
+    const REGROWTH_STREAK_THRESHOLD = 3;
+    const REGROWTH_AMOUNT = 15;
 
-    // Color palette for blocks
+    // Level definitions with per-level theming
+    // Each level has unique colors, background, and C64-inspired original music
+    const LEVELS = [
+      {
+        // Level 1: The original Skyrise tune - Am, Rob Hubbard style
+        id: 1, name: 'Foundation', goal: 10, speedMult: 0.8, startWidth: 200,
+        bgGradient: ['#0a0a15', '#1a1a2e', '#16213e', '#0f3460'],
+        colors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8B500', '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9'],
+        music: {
+          bpm: 140,
+          chords: (N) => [
+            { bass: N.A2, arp: [N.A3, N.C4, N.E4] },      // Am
+            { bass: N.F3, arp: [N.F3, N.A3, N.C4] },      // F
+            { bass: N.C3, arp: [N.C3, N.E3, N.G3] },      // C
+            { bass: N.G3, arp: [N.G3, N.B3, N.D4] }       // G
+          ],
+          melody: (N) => [
+            N.E5, N.E5, N.D5, N.C5, N.D5, N.E5, N.A4, 0,
+            N.E5, N.G5, N.A5, N.G5, N.E5, N.D5, N.C5, 0,
+            N.C5, N.D5, N.E5, N.G5, N.E5, N.D5, N.C5, N.D5,
+            N.E5, N.D5, N.C5, N.A4, N.G4, N.A4, 0, 0
+          ],
+          arpSpeed: 80
+        }
+      },
+      {
+        // Level 2: G minor - Monty on the Run / Last Ninja style
+        // Flowing, slightly melancholic, driving bass
+        id: 2, name: 'Skyscraper', goal: 15, speedMult: 1.0, startWidth: 190,
+        bgGradient: ['#0a1628', '#0f3460', '#1a5276', '#21618c'],
+        colors: ['#96CEB4', '#88D8B0', '#FFEAA7', '#DDA0DD', '#98D8C8', '#B5EAD7', '#C7CEEA', '#FFD93D', '#A8E6CF', '#95E1D3'],
+        music: {
+          bpm: 135,
+          chords: (N) => [
+            { bass: N.G3, arp: [N.G3, N.Bb3, N.D4] },     // Gm
+            { bass: N.Eb3, arp: [N.Eb4, N.G4, N.Bb4] },   // Eb
+            { bass: N.Bb2, arp: [N.Bb3, N.D4, N.F4] },    // Bb
+            { bass: N.F3, arp: [N.F3, N.A3, N.C4] }       // F
+          ],
+          melody: (N) => [
+            // Phrase 1 - descending with swing
+            N.D5, N.Bb4, N.D5, N.G5, N.F5, N.Eb5, N.D5, 0,
+            // Phrase 2 - rising response
+            N.Bb4, N.C5, N.D5, N.Eb5, N.F5, N.G5, N.F5, 0,
+            // Phrase 3 - tension building
+            N.G5, N.F5, N.Eb5, N.D5, N.C5, N.D5, N.Eb5, N.F5,
+            // Phrase 4 - resolution
+            N.G5, N.F5, N.Eb5, N.D5, N.Bb4, N.C5, N.D5, 0
+          ],
+          arpSpeed: 90
+        }
+      },
+      {
+        // Level 3: E minor - Sanxion / Delta style
+        // Dark, intense, fast arpeggios, chromatic tension
+        id: 3, name: 'Stratosphere', goal: 20, speedMult: 1.2, startWidth: 180,
+        bgGradient: ['#0a0015', '#1a0a2e', '#2a1a4e', '#3d1f6d'],
+        colors: ['#A855F7', '#8B5CF6', '#7C3AED', '#6366F1', '#818CF8', '#C084FC', '#E879F9', '#F0ABFC', '#67E8F9', '#22D3EE', '#06B6D4', '#A78BFA'],
+        music: {
+          bpm: 155,
+          chords: (N) => [
+            { bass: N.E3, arp: [N.E4, N.G4, N.B4] },      // Em
+            { bass: N.C3, arp: [N.C4, N.E4, N.G4] },      // C
+            { bass: N.D3, arp: [N.D4, N.Gb4, N.A4] },     // D (major, for tension)
+            { bass: N.B2, arp: [N.B3, N.Eb4, N.Gb4] }     // B (dominant, dark resolve)
+          ],
+          melody: (N) => [
+            // Phrase 1 - urgent, staccato
+            N.B5, N.E5, N.B5, N.G5, N.E5, N.Gb5, N.G5, 0,
+            // Phrase 2 - chromatic descent
+            N.B5, N.A5, N.Ab5, N.G5, N.Gb5, N.E5, N.D5, N.E5,
+            // Phrase 3 - driving push
+            N.G5, N.A5, N.B5, N.A5, N.G5, N.Gb5, N.E5, 0,
+            // Phrase 4 - dramatic finish
+            N.E5, N.Gb5, N.G5, N.A5, N.B5, N.G5, N.E5, 0
+          ],
+          arpSpeed: 55
+        }
+      },
+      {
+        // Endless: Db minor - Commando / International Karate style
+        // Epic, relentless, heroic, the "final boss" feel
+        id: null, name: 'Endless', goal: Infinity, speedMult: 1.0, startWidth: 200,
+        bgGradient: ['#1a0a00', '#2d1506', '#451a0a', '#5c1a0a'],
+        colors: ['#FF4500', '#FF6347', '#FF7F50', '#FFA500', '#FFD700', '#FF8C00', '#DC143C', '#FF1493', '#FFB347', '#FF6B6B', '#E74C3C', '#F39C12'],
+        music: {
+          bpm: 150,
+          chords: (N) => [
+            { bass: N.Db3, arp: [N.Db4, N.E4, N.Ab4] },   // Dbm (C#m)
+            { bass: N.A2, arp: [N.A3, N.Db4, N.E4] },     // A
+            { bass: N.B2, arp: [N.B3, N.Eb4, N.Gb4] },    // B
+            { bass: N.Ab3, arp: [N.Ab3, N.C4, N.Eb4] }    // Ab (G#) dominant
+          ],
+          melody: (N) => [
+            // Phrase 1 - heroic opening
+            N.Db5, N.E5, N.Ab5, N.E5, N.Db5, N.B4, N.Db5, 0,
+            // Phrase 2 - epic rising figure
+            N.E5, N.Gb5, N.Ab5, N.B5, N.Ab5, N.Gb5, N.E5, 0,
+            // Phrase 3 - relentless drive
+            N.Ab5, N.Gb5, N.E5, N.Db5, N.E5, N.Gb5, N.Ab5, N.B5,
+            // Phrase 4 - dramatic resolve
+            N.Ab5, N.Gb5, N.E5, N.Db5, N.B4, N.Db5, 0, 0
+          ],
+          arpSpeed: 65
+        }
+      }
+    ];
+
+    // Default color palette (fallback)
     const COLORS = [
       '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
       '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
       '#F8B500', '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9'
     ];
 
+    let currentLevelColors = COLORS;
+
     function getBlockColor(index) {
-      return COLORS[index % COLORS.length];
+      return currentLevelColors[index % currentLevelColors.length];
     }
 
     // Create gradient for block
@@ -1608,9 +1790,11 @@
       const gameStateRef = useRef(null);
       const animationRef = useRef(null);
 
-      const [gamePhase, setGamePhase] = useState('start'); // start, playing, gameover
+      const [gamePhase, setGamePhase] = useState('start'); // start, playing, levelcomplete, gameover
       const [score, setScore] = useState(0);
       const [health, setHealth] = useState(MAX_HEALTH);
+      const [currentLevel, setCurrentLevel] = useState(0);
+      const [levelBlocks, setLevelBlocks] = useState(0);
       const [showPerfect, setShowPerfect] = useState(false);
       const [highScore, setHighScore] = useState(() => {
         return parseInt(localStorage.getItem('towerHighScore') || '0');
@@ -1764,15 +1948,20 @@
           debris: [],
           shakeIntensity: 0,
           shakeX: 0,
-          shakeY: 0
+          shakeY: 0,
+          currentLevel: 0,
+          levelBlocks: 0
         };
 
         setScore(0);
         setHealth(MAX_HEALTH);
         setStreak(0);
+        setCurrentLevel(0);
+        setLevelBlocks(0);
         setGameStats({ blocks: 0, perfects: 0, maxStreak: 0 });
         setIsNewHighScore(false);
         setShowRegrowth(false);
+        currentLevelColors = LEVELS[0].colors;
       }, []);
 
       // Handle canvas resize
@@ -2037,15 +2226,29 @@
                 }
               }
 
+              // Check level completion
+              const level = LEVELS[state.currentLevel];
+              state.levelBlocks++;
+              if (level.goal !== Infinity && state.levelBlocks >= level.goal) {
+                // Level complete!
+                playLevelCompleteSound();
+                haptic('streak');
+                setLevelBlocks(state.levelBlocks);
+                setGamePhase('levelcomplete');
+                return; // Stop the game loop
+              }
+              setLevelBlocks(state.levelBlocks);
+
               // Create new current block
               const newBlock = blocks[blocks.length - 1];
+              const speedMult = LEVELS[state.currentLevel].speedMult;
               const speedIncrease = Math.min(blocks.length * 0.15, 6);
 
               currentBlock.width = newBlock.width;
               currentBlock.x = currentBlock.direction > 0 ? 0 : canvas.width - currentBlock.width;
               currentBlock.y = 120; // Fixed screen position for swinging block
               currentBlock.dropping = false;
-              currentBlock.speed = SWING_SPEED_BASE + speedIncrease;
+              currentBlock.speed = (SWING_SPEED_BASE + speedIncrease) * speedMult;
             }
           }
 
@@ -2067,12 +2270,13 @@
           ctx.save();
           ctx.translate(state.shakeX, state.shakeY);
 
-          // Draw gradient background
+          // Draw gradient background (per-level themed)
+          const bgColors = LEVELS[state.currentLevel].bgGradient;
           const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-          gradient.addColorStop(0, '#0a0a15');
-          gradient.addColorStop(0.3, '#1a1a2e');
-          gradient.addColorStop(0.7, '#16213e');
-          gradient.addColorStop(1, '#0f3460');
+          gradient.addColorStop(0, bgColors[0]);
+          gradient.addColorStop(0.3, bgColors[1]);
+          gradient.addColorStop(0.7, bgColors[2]);
+          gradient.addColorStop(1, bgColors[3]);
           ctx.fillStyle = gradient;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -2217,8 +2421,64 @@
       const startGame = () => {
         playSound('start');
         initGame();
+        currentLevelColors = LEVELS[0].colors;
         setGamePhase('playing');
-        setTimeout(() => startBackgroundMusic(), 500);
+        setTimeout(() => startBackgroundMusic(0), 500);
+      };
+
+      // Continue to next level (keeps score, resets tower and health)
+      const continueToNextLevel = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const state = gameStateRef.current;
+        const nextLevel = state.currentLevel + 1;
+        const level = LEVELS[nextLevel];
+
+        playSound('start');
+        haptic('perfect');
+
+        // Reset tower but keep score
+        state.blocks = [{
+          x: (canvas.width - level.startWidth) / 2,
+          y: canvas.height - BLOCK_HEIGHT - 50,
+          width: level.startWidth,
+          height: BLOCK_HEIGHT
+        }];
+        state.currentBlock = {
+          x: 0,
+          y: 120,
+          width: level.startWidth,
+          height: BLOCK_HEIGHT,
+          direction: 1,
+          speed: SWING_SPEED_BASE * level.speedMult,
+          dropping: false
+        };
+        state.cameraY = 0;
+        state.targetCameraY = 0;
+        state.perfectStreak = 0;
+        state.particles = [];
+        state.debris = [];
+        state.glowIntensity = 0;
+        state.shakeIntensity = 0;
+        state.shakeX = 0;
+        state.shakeY = 0;
+        state.currentLevel = nextLevel;
+        state.levelBlocks = 0;
+        state.stars = createStars(canvas.width, canvas.height);
+
+        // Switch to level theme
+        currentLevelColors = level.colors;
+
+        setCurrentLevel(nextLevel);
+        setLevelBlocks(0);
+        setHealth(MAX_HEALTH); // Health reset as reward
+        setStreak(0);
+        setGamePhase('playing');
+
+        // Restart music with new level's tune
+        stopBackgroundMusic();
+        setTimeout(() => startBackgroundMusic(nextLevel), 500);
       };
 
       // Sound toggle button component
@@ -2314,13 +2574,53 @@
             <canvas ref=${canvasRef} onClick=${startGame} style="cursor: pointer" />
             <div class="overlay">
               <div class="title">🏗️ Skyrise</div>
-              <div class="subtitle">Stack blocks to build your tower!</div>
+              <div class="subtitle">Stack blocks. Complete levels. Go endless.</div>
               <button class="btn" onClick=${startGame}>Start Game</button>
               <div class="instructions">Tap or click to drop blocks</div>
             </div>
             <${TrophyButton} />
             <${SoundButton} />
             <${LeaderboardModal} />
+            <${Toast} />
+          </div>
+        `;
+      }
+
+      // Render level complete screen
+      if (gamePhase === 'levelcomplete') {
+        const completedLevel = LEVELS[currentLevel];
+        const nextLevel = LEVELS[currentLevel + 1];
+        return html`
+          <div>
+            <canvas ref=${canvasRef} />
+            <div class="overlay">
+              <div class="level-complete-title">Level Complete!</div>
+              <div class="level-name">${completedLevel.name}</div>
+              <div class="final-score">${score}</div>
+              <div class="game-stats">
+                <div class="stat-item">
+                  <div class="stat-value">${gameStats.blocks}</div>
+                  <div class="stat-label">Total Blocks</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">${gameStats.perfects}</div>
+                  <div class="stat-label">Perfects</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">${gameStats.maxStreak}x</div>
+                  <div class="stat-label">Best Streak</div>
+                </div>
+              </div>
+              ${nextLevel && html`
+                <div class="level-next-preview">
+                  Next: ${nextLevel.name} ${nextLevel.goal === Infinity ? '(Endless)' : `- ${nextLevel.goal} blocks`}
+                </div>
+              `}
+              <button class="btn" onClick=${continueToNextLevel}>
+                ${nextLevel && nextLevel.goal === Infinity ? 'Enter Endless Mode' : 'Next Level'}
+              </button>
+            </div>
+            <${SoundButton} />
             <${Toast} />
           </div>
         `;
@@ -2367,6 +2667,8 @@
 
       // Render playing screen
       const streakInfo = getStreakInfo(streak);
+      const level = LEVELS[currentLevel];
+      const levelProgress = level.goal === Infinity ? 100 : Math.min((levelBlocks / level.goal) * 100, 100);
 
       return html`
         <div class=${shake}>
@@ -2381,6 +2683,14 @@
             ${Array(health).fill('❤️').join('')}
             ${Array(MAX_HEALTH - health).fill('🖤').join('')}
           </div>
+          <div class="level-indicator">
+            ${level.id ? `Level ${level.id}` : 'Endless'}
+          </div>
+          ${level.goal !== Infinity && html`
+            <div class="level-progress">
+              <div class="level-progress-fill" style="width: ${levelProgress}%"></div>
+            </div>
+          `}
           ${streak >= 2 && html`
             <div class="multiplier-display active">
               ${streak}x COMBO
