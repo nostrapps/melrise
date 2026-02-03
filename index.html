@@ -227,6 +227,37 @@
       opacity: 1;
     }
 
+    .regrowth-text {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #98FB98;
+      text-shadow: 0 0 20px #98FB98, 0 0 40px #32CD32;
+      z-index: 6;
+      pointer-events: none;
+      animation: regrowthPop 0.8s ease-out forwards;
+    }
+
+    @keyframes regrowthPop {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(0.5);
+      }
+      30% {
+        transform: translate(-50%, -50%) scale(1.3);
+      }
+      60% {
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -80%) scale(1);
+      }
+    }
+
     .screen-flash {
       position: absolute;
       top: 0;
@@ -1094,6 +1125,32 @@
       }
     }
 
+    // Regrowth sound - satisfying "power up" feel
+    function playRegrowthSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        // Rising shimmer sound
+        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5 to E6
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const delay = i * 0.04;
+          gain.gain.setValueAtTime(0, now + delay);
+          gain.gain.linearRampToValueAtTime(0.15, now + delay + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.25);
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.25);
+        });
+      } catch (e) {}
+    }
+
     // Game constants
     const BLOCK_HEIGHT = 30;
     const INITIAL_BLOCK_WIDTH = 200;
@@ -1103,6 +1160,8 @@
     const POINTS_NORMAL = 25;
     const POINTS_PERFECT = 50;
     const PERFECT_THRESHOLD = 5;
+    const REGROWTH_STREAK_THRESHOLD = 3;  // Perfects needed before regrowth starts
+    const REGROWTH_AMOUNT = 15;           // Pixels added per perfect after threshold
 
     // Color palette for blocks
     const COLORS = [
@@ -1353,6 +1412,7 @@
       const [streakText, setStreakText] = useState('');
       const [showFlash, setShowFlash] = useState('');
       const [shake, setShake] = useState('');
+      const [showRegrowth, setShowRegrowth] = useState(false);
 
       // Game stats for game over screen
       const [gameStats, setGameStats] = useState({ blocks: 0, perfects: 0, maxStreak: 0 });
@@ -1500,8 +1560,10 @@
 
         setScore(0);
         setHealth(MAX_HEALTH);
+        setStreak(0);
         setGameStats({ blocks: 0, perfects: 0, maxStreak: 0 });
         setIsNewHighScore(false);
+        setShowRegrowth(false);
       }, []);
 
       // Handle canvas resize
@@ -1659,13 +1721,34 @@
                     setTimeout(() => setShowPerfect(false), 600);
                   }
 
-                  // Perfect keeps same width
+                  // Calculate new width with potential regrowth
+                  let newWidth = lastBlock.width;
+                  let didRegrow = false;
+
+                  if (currentStreak >= REGROWTH_STREAK_THRESHOLD && lastBlock.width < INITIAL_BLOCK_WIDTH) {
+                    // Regrowth! Add width back
+                    const regrowthBonus = REGROWTH_AMOUNT * (currentStreak - REGROWTH_STREAK_THRESHOLD + 1);
+                    newWidth = Math.min(lastBlock.width + regrowthBonus, INITIAL_BLOCK_WIDTH);
+                    didRegrow = newWidth > lastBlock.width;
+                  }
+
+                  // Center the regrown block on the previous block
+                  const widthDiff = newWidth - lastBlock.width;
+                  const newX = lastBlock.x - widthDiff / 2;
+
                   blocks.push({
-                    x: lastBlock.x,
+                    x: newX,
                     y: lastBlock.y - BLOCK_HEIGHT,
-                    width: lastBlock.width,
+                    width: newWidth,
                     height: BLOCK_HEIGHT
                   });
+
+                  // Extra feedback if block regrew
+                  if (didRegrow) {
+                    setShowRegrowth(true);
+                    setTimeout(() => setShowRegrowth(false), 800);
+                    playRegrowthSound();
+                  }
                 } else {
                   playSound('land');
                   state.perfectStreak = 0;
@@ -2094,6 +2177,7 @@
               <div class="streak-text ${streakInfo.class}">${streakText}</div>
             </div>
           `}
+          ${showRegrowth && html`<div class="regrowth-text">+ REGROWTH!</div>`}
           ${showFlash && html`<div class="screen-flash ${showFlash}"></div>`}
           <${TrophyButton} />
           <${SoundButton} />
