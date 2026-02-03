@@ -369,6 +369,35 @@
       margin-top: 1rem;
     }
 
+    .btn-row {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-share {
+      padding: 1rem 2rem;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #fff;
+      background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%);
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 15px rgba(78, 205, 196, 0.4);
+    }
+
+    .btn-share:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(78, 205, 196, 0.6);
+    }
+
+    .btn-share:active {
+      transform: translateY(0);
+    }
+
     .sound-toggle {
       position: absolute;
       bottom: 20px;
@@ -1122,6 +1151,133 @@
         }
       } catch (e) {
         // Audio not supported
+      }
+    }
+
+    // Generate share image
+    async function generateShareImage(score, stats, isNewHighScore) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 600;
+      canvas.height = 400;
+      const ctx = canvas.getContext('2d');
+
+      // Background gradient
+      const gradient = ctx.createLinearGradient(0, 0, 600, 400);
+      gradient.addColorStop(0, '#1a1a2e');
+      gradient.addColorStop(0.5, '#16213e');
+      gradient.addColorStop(1, '#0f3460');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 600, 400);
+
+      // Add some stars
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      for (let i = 0; i < 30; i++) {
+        const x = Math.random() * 600;
+        const y = Math.random() * 400;
+        const size = Math.random() * 2 + 0.5;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Title
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🏗️ SKYRISE', 300, 50);
+
+      // Score
+      ctx.fillStyle = '#ffd700';
+      ctx.font = 'bold 72px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(score.toLocaleString(), 300, 140);
+
+      // New high score badge
+      if (isNewHighScore) {
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillText('🎉 NEW HIGH SCORE! 🎉', 300, 175);
+      }
+
+      // Stats boxes
+      const statY = 230;
+      const stats_data = [
+        { label: 'BLOCKS', value: stats.blocks, x: 120 },
+        { label: 'PERFECTS', value: stats.perfects, x: 300 },
+        { label: 'BEST STREAK', value: stats.maxStreak + 'x', x: 480 }
+      ];
+
+      stats_data.forEach(stat => {
+        // Box background
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.beginPath();
+        ctx.roundRect(stat.x - 60, statY - 30, 120, 70, 10);
+        ctx.fill();
+
+        // Value
+        ctx.fillStyle = '#4ECDC4';
+        ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillText(stat.value, stat.x, statY + 5);
+
+        // Label
+        ctx.fillStyle = '#888888';
+        ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillText(stat.label, stat.x, statY + 30);
+      });
+
+      // Call to action
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '18px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText('Can you beat my score?', 300, 340);
+
+      // URL
+      ctx.fillStyle = '#667eea';
+      ctx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText('nostrapps.github.io/skyrise', 300, 370);
+
+      // Convert to blob
+      return new Promise(resolve => {
+        canvas.toBlob(blob => resolve(blob), 'image/png');
+      });
+    }
+
+    // Share score function
+    async function shareScore(score, stats, isNewHighScore, showToast) {
+      const shareText = `🏗️ I scored ${score.toLocaleString()} on Skyrise!\n` +
+        `📦 ${stats.blocks} blocks | ⭐ ${stats.perfects} perfects | 🔥 ${stats.maxStreak}x streak\n\n` +
+        `Can you beat me?\nhttps://nostrapps.github.io/skyrise/`;
+
+      try {
+        const imageBlob = await generateShareImage(score, stats, isNewHighScore);
+        const imageFile = new File([imageBlob], 'skyrise-score.png', { type: 'image/png' });
+
+        // Try Web Share API with image
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
+          await navigator.share({
+            text: shareText,
+            files: [imageFile]
+          });
+          return;
+        }
+
+        // Fallback: Web Share API without image
+        if (navigator.share) {
+          await navigator.share({
+            title: 'Skyrise Score',
+            text: shareText
+          });
+          return;
+        }
+      } catch (e) {
+        // User cancelled or share failed, try clipboard
+        if (e.name === 'AbortError') return;
+      }
+
+      // Fallback: Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareText);
+        showToast('Score copied to clipboard!');
+      } catch (e) {
+        showToast('Could not share');
       }
     }
 
@@ -2139,7 +2295,10 @@
                   <div class="stat-label">Best Streak</div>
                 </div>
               </div>
-              <button class="btn" onClick=${startGame}>Play Again</button>
+              <div class="btn-row">
+                <button class="btn" onClick=${startGame}>Play Again</button>
+                <button class="btn-share" onClick=${() => shareScore(score, gameStats, isNewHighScore, showToast)}>Share 📤</button>
+              </div>
             </div>
             <${TrophyButton} />
             <${SoundButton} />
