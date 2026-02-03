@@ -275,12 +275,61 @@
       font-weight: bold;
       color: #ffd700;
       margin-bottom: 0.5rem;
+      animation: scoreReveal 0.5s ease-out;
+    }
+
+    @keyframes scoreReveal {
+      from { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1.2); }
+      to { transform: scale(1); opacity: 1; }
     }
 
     .high-score {
       font-size: 1rem;
       color: #888;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .new-high-score {
+      font-size: 1.2rem;
+      color: #ffd700;
+      text-shadow: 0 0 20px #ffd700;
+      animation: pulse 0.5s ease-in-out infinite alternate;
+      margin-bottom: 1rem;
+    }
+
+    @keyframes pulse {
+      from { opacity: 0.8; transform: scale(1); }
+      to { opacity: 1; transform: scale(1.05); }
+    }
+
+    .game-stats {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-item {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      min-width: 80px;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #4ECDC4;
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .instructions {
@@ -1196,6 +1245,19 @@
       ctx.globalAlpha = 1;
     }
 
+    // Haptic feedback (mobile vibration)
+    function haptic(type) {
+      if (!navigator.vibrate) return;
+      switch (type) {
+        case 'tap': navigator.vibrate(8); break;
+        case 'land': navigator.vibrate(15); break;
+        case 'perfect': navigator.vibrate([10, 30, 10]); break;
+        case 'streak': navigator.vibrate([10, 20, 10, 20, 15]); break;
+        case 'fail': navigator.vibrate(40); break;
+        case 'gameover': navigator.vibrate([50, 50, 100]); break;
+      }
+    }
+
     // Spawn falling debris when block is cut
     function spawnDebris(state, x, y, width, height, color, side) {
       // side: 'left' or 'right' - determines which way it rotates
@@ -1270,6 +1332,10 @@
       const [streakText, setStreakText] = useState('');
       const [showFlash, setShowFlash] = useState('');
       const [shake, setShake] = useState('');
+
+      // Game stats for game over screen
+      const [gameStats, setGameStats] = useState({ blocks: 0, perfects: 0, maxStreak: 0 });
+      const [isNewHighScore, setIsNewHighScore] = useState(false);
 
       // Nostr state
       const [nostrUser, setNostrUser] = useState(null);
@@ -1410,6 +1476,8 @@
 
         setScore(0);
         setHealth(MAX_HEALTH);
+        setGameStats({ blocks: 0, perfects: 0, maxStreak: 0 });
+        setIsNewHighScore(false);
       }, []);
 
       // Handle canvas resize
@@ -1488,15 +1556,18 @@
               if (overlapWidth <= 0) {
                 // Complete miss
                 playSound('fail');
+                haptic('fail');
                 setHealth(h => {
                   const newHealth = h - 1;
                   if (newHealth <= 0) {
                     stopBackgroundMusic();
                     playSound('gameover');
+                    haptic('gameover');
                     setGamePhase('gameover');
                     if (score > highScore) {
                       setHighScore(score);
                       localStorage.setItem('towerHighScore', score.toString());
+                      setIsNewHighScore(true);
                     }
                     // Publish score to Nostr if logged in
                     publishScore(score);
@@ -1515,6 +1586,16 @@
                   const bonus = POINTS_PERFECT + (currentStreak - 1) * 10;
                   setScore(s => s + bonus);
                   setStreak(currentStreak);
+
+                  // Update game stats
+                  setGameStats(prev => ({
+                    blocks: prev.blocks + 1,
+                    perfects: prev.perfects + 1,
+                    maxStreak: Math.max(prev.maxStreak, currentStreak)
+                  }));
+
+                  // Haptic feedback
+                  haptic(currentStreak >= 3 ? 'streak' : 'perfect');
 
                   // Spawn particles and trigger glow!
                   const particleColor = getBlockColor(blocks.length);
@@ -1561,6 +1642,12 @@
                   state.perfectStreak = 0;
                   setStreak(0);
                   setScore(s => s + POINTS_NORMAL);
+
+                  // Update game stats (block count only)
+                  setGameStats(prev => ({ ...prev, blocks: prev.blocks + 1 }));
+
+                  // Haptic feedback
+                  haptic('land');
 
                   // Small particle burst on normal landing
                   const particleColor = getBlockColor(blocks.length);
@@ -1782,6 +1869,7 @@
         const state = gameStateRef.current;
         if (state && !state.currentBlock.dropping) {
           playSound('drop');
+          haptic('tap');
           state.currentBlock.dropping = true;
         }
       }, [gamePhase]);
@@ -1907,7 +1995,24 @@
             <div class="overlay">
               <div class="title">Game Over</div>
               <div class="final-score">${score}</div>
-              <div class="high-score">High Score: ${highScore}</div>
+              ${isNewHighScore
+                ? html`<div class="new-high-score">🎉 New High Score! 🎉</div>`
+                : html`<div class="high-score">High Score: ${highScore}</div>`
+              }
+              <div class="game-stats">
+                <div class="stat-item">
+                  <div class="stat-value">${gameStats.blocks}</div>
+                  <div class="stat-label">Blocks</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">${gameStats.perfects}</div>
+                  <div class="stat-label">Perfects</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">${gameStats.maxStreak}x</div>
+                  <div class="stat-label">Best Streak</div>
+                </div>
+              </div>
               <button class="btn" onClick=${startGame}>Play Again</button>
             </div>
             <${TrophyButton} />
