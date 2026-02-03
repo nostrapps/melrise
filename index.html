@@ -488,13 +488,12 @@
           }],
           currentBlock: {
             x: 0,
-            y: 100,
+            y: 120,
             width: INITIAL_BLOCK_WIDTH,
             height: BLOCK_HEIGHT,
             direction: 1,
             speed: SWING_SPEED_BASE,
-            dropping: false,
-            dropY: 100
+            dropping: false
           },
           cameraY: 0,
           targetCameraY: 0,
@@ -562,10 +561,11 @@
             // Drop the block
             currentBlock.y += DROP_SPEED;
 
-            const targetY = lastBlock.y - BLOCK_HEIGHT - state.cameraY;
+            // Target is the screen position where the new block should land
+            const targetScreenY = (lastBlock.y - BLOCK_HEIGHT) - state.cameraY;
 
-            if (currentBlock.y >= targetY) {
-              currentBlock.y = targetY;
+            if (currentBlock.y >= targetScreenY) {
+              currentBlock.y = targetScreenY;
 
               // Calculate overlap
               const blockLeft = currentBlock.x;
@@ -627,9 +627,11 @@
                   });
                 }
 
-                // Move camera up
-                if (blocks.length > 5) {
-                  state.targetCameraY = (blocks.length - 5) * BLOCK_HEIGHT;
+                // Move camera up - keep top of tower at a comfortable screen position
+                const topBlockScreenY = canvas.height - (blocks.length * BLOCK_HEIGHT) - 50;
+                const desiredTopY = canvas.height * 0.6; // Keep top block at 60% down the screen
+                if (topBlockScreenY < desiredTopY) {
+                  state.targetCameraY = desiredTopY - topBlockScreenY;
                 }
               }
 
@@ -639,14 +641,14 @@
 
               currentBlock.width = newBlock.width;
               currentBlock.x = currentBlock.direction > 0 ? 0 : canvas.width - currentBlock.width;
-              currentBlock.y = Math.max(50, newBlock.y - BLOCK_HEIGHT * 3 - state.cameraY);
+              currentBlock.y = 120; // Fixed screen position for swinging block
               currentBlock.dropping = false;
               currentBlock.speed = SWING_SPEED_BASE + speedIncrease;
             }
           }
 
-          // Smooth camera movement
-          state.cameraY += (state.targetCameraY - state.cameraY) * 0.1;
+          // Smooth camera movement (faster follow)
+          state.cameraY += (state.targetCameraY - state.cameraY) * 0.15;
 
           // Render
           ctx.clearRect(0, 0, canvas.width, canvas.height);
