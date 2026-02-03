@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skyrise - Music Lab</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #fff;
+      padding: 2rem;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 0.5rem;
+      font-size: 2rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 2rem;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .stop-btn {
+      padding: 0.75rem 2rem;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #fff;
+      background: #e74c3c;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    .stop-btn:hover { transform: translateY(-2px); }
+    .stop-btn:active { transform: translateY(0); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .song-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 1.5rem;
+      cursor: pointer;
+      transition: transform 0.2s, border-color 0.3s, background 0.3s;
+    }
+
+    .song-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .song-card.playing {
+      border-color: #4ECDC4;
+      background: rgba(78, 205, 196, 0.1);
+      box-shadow: 0 0 20px rgba(78, 205, 196, 0.2);
+    }
+
+    .song-title {
+      font-size: 1.3rem;
+      font-weight: bold;
+      margin-bottom: 0.25rem;
+    }
+
+    .song-key {
+      font-size: 0.85rem;
+      color: #4ECDC4;
+      margin-bottom: 0.5rem;
+    }
+
+    .song-desc {
+      font-size: 0.85rem;
+      color: #aaa;
+      line-height: 1.4;
+      margin-bottom: 0.75rem;
+    }
+
+    .song-meta {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.75rem;
+      color: #666;
+    }
+
+    .song-meta span {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .now-playing {
+      text-align: center;
+      font-size: 0.9rem;
+      color: #4ECDC4;
+      margin-bottom: 1rem;
+      min-height: 1.5rem;
+    }
+
+    .visualizer {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 3px;
+      height: 40px;
+      margin-bottom: 1rem;
+    }
+
+    .viz-bar {
+      width: 4px;
+      background: #4ECDC4;
+      border-radius: 2px;
+      transition: height 0.1s;
+    }
+  </style>
+</head>
+<body>
+  <h1>Skyrise Music Lab</h1>
+  <p class="subtitle">Click a song to play. C64 SID-style compositions.</p>
+
+  <div id="now-playing" class="now-playing"></div>
+
+  <div class="visualizer" id="visualizer"></div>
+
+  <div class="controls">
+    <button class="stop-btn" onclick="stopMusic()">Stop</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <script>
+    // Note frequencies
+    const N = {
+      A2: 110.00, Bb2: 116.54, B2: 123.47,
+      C3: 130.81, Db3: 138.59, D3: 146.83, Eb3: 155.56, E3: 164.81, F3: 174.61,
+      Gb3: 185.00, G3: 196.00, Ab3: 207.65, A3: 220.00, Bb3: 233.08, B3: 246.94,
+      C4: 261.63, Db4: 277.18, D4: 293.66, Eb4: 311.13, E4: 329.63, F4: 349.23,
+      Gb4: 369.99, G4: 392.00, Ab4: 415.30, A4: 440.00, Bb4: 466.16, B4: 493.88,
+      C5: 523.25, Db5: 554.37, D5: 587.33, Eb5: 622.25, E5: 659.25, F5: 698.46,
+      Gb5: 739.99, G5: 783.99, Ab5: 830.61, A5: 880.00, Bb5: 932.33, B5: 987.77,
+      C6: 1046.50, D6: 1174.66, E6: 1318.51
+    };
+
+    // ========== SONG DEFINITIONS ==========
+
+    const SONGS = [
+      {
+        title: 'Skyrise Original',
+        key: 'A minor',
+        bpm: 140,
+        arpSpeed: 80,
+        style: 'Rob Hubbard',
+        desc: 'The original Skyrise theme. Energetic, memorable, with that classic SID drive.',
+        chords: [
+          { bass: N.A2, arp: [N.A3, N.C4, N.E4] },
+          { bass: N.F3, arp: [N.F3, N.A3, N.C4] },
+          { bass: N.C3, arp: [N.C3, N.E3, N.G3] },
+          { bass: N.G3, arp: [N.G3, N.B3, N.D4] }
+        ],
+        melody: [
+          N.E5, N.E5, N.D5, N.C5, N.D5, N.E5, N.A4, 0,
+          N.E5, N.G5, N.A5, N.G5, N.E5, N.D5, N.C5, 0,
+          N.C5, N.D5, N.E5, N.G5, N.E5, N.D5, N.C5, N.D5,
+          N.E5, N.D5, N.C5, N.A4, N.G4, N.A4, 0, 0
+        ]
+      },
+      {
+        title: 'Night Runner',
+        key: 'G minor',
+        bpm: 135,
+        arpSpeed: 90,
+        style: 'Last Ninja / Monty on the Run',
+        desc: 'Flowing and melancholic. Descending lines with a driving bass. Think midnight chase.',
+        chords: [
+          { bass: N.G3, arp: [N.G3, N.Bb3, N.D4] },
+          { bass: N.Eb3, arp: [N.Eb4, N.G4, N.Bb4] },
+          { bass: N.Bb2, arp: [N.Bb3, N.D4, N.F4] },
+          { bass: N.F3, arp: [N.F3, N.A3, N.C4] }
+        ],
+        melody: [
+          N.D5, N.Bb4, N.D5, N.G5, N.F5, N.Eb5, N.D5, 0,
+          N.Bb4, N.C5, N.D5, N.Eb5, N.F5, N.G5, N.F5, 0,
+          N.G5, N.F5, N.Eb5, N.D5, N.C5, N.D5, N.Eb5, N.F5,
+          N.G5, N.F5, N.Eb5, N.D5, N.Bb4, N.C5, N.D5, 0
+        ]
+      },
+      {
+        title: 'Dark Horizon',
+        key: 'E minor',
+        bpm: 155,
+        arpSpeed: 55,
+        style: 'Sanxion / Delta',
+        desc: 'Dark and intense. Chromatic tension with fast arpeggios. The pressure builds.',
+        chords: [
+          { bass: N.E3, arp: [N.E4, N.G4, N.B4] },
+          { bass: N.C3, arp: [N.C4, N.E4, N.G4] },
+          { bass: N.D3, arp: [N.D4, N.Gb4, N.A4] },
+          { bass: N.B2, arp: [N.B3, N.Eb4, N.Gb4] }
+        ],
+        melody: [
+          N.B5, N.E5, N.B5, N.G5, N.E5, N.Gb5, N.G5, 0,
+          N.B5, N.A5, N.Ab5, N.G5, N.Gb5, N.E5, N.D5, N.E5,
+          N.G5, N.A5, N.B5, N.A5, N.G5, N.Gb5, N.E5, 0,
+          N.E5, N.Gb5, N.G5, N.A5, N.B5, N.G5, N.E5, 0
+        ]
+      },
+      {
+        title: 'Final Ascent',
+        key: 'Db minor',
+        bpm: 150,
+        arpSpeed: 65,
+        style: 'Commando / International Karate',
+        desc: 'Epic and relentless. Heroic lead over driving arpeggios. The final boss awaits.',
+        chords: [
+          { bass: N.Db3, arp: [N.Db4, N.E4, N.Ab4] },
+          { bass: N.A2, arp: [N.A3, N.Db4, N.E4] },
+          { bass: N.B2, arp: [N.B3, N.Eb4, N.Gb4] },
+          { bass: N.Ab3, arp: [N.Ab3, N.C4, N.Eb4] }
+        ],
+        melody: [
+          N.Db5, N.E5, N.Ab5, N.E5, N.Db5, N.B4, N.Db5, 0,
+          N.E5, N.Gb5, N.Ab5, N.B5, N.Ab5, N.Gb5, N.E5, 0,
+          N.Ab5, N.Gb5, N.E5, N.Db5, N.E5, N.Gb5, N.Ab5, N.B5,
+          N.Ab5, N.Gb5, N.E5, N.Db5, N.B4, N.Db5, 0, 0
+        ]
+      },
+      {
+        title: 'Neon Streets',
+        key: 'C minor',
+        bpm: 130,
+        arpSpeed: 75,
+        style: 'Cybernoid / Wizball',
+        desc: 'Moody and atmospheric. Pulsing bass with a winding melody. Neon-lit alleyways.',
+        chords: [
+          { bass: N.C3, arp: [N.C4, N.Eb4, N.G4] },
+          { bass: N.Ab3, arp: [N.Ab3, N.C4, N.Eb4] },
+          { bass: N.Bb2, arp: [N.Bb3, N.D4, N.F4] },
+          { bass: N.G3, arp: [N.G3, N.B3, N.D4] }
+        ],
+        melody: [
+          N.G5, N.Eb5, N.C5, N.D5, N.Eb5, N.G5, N.F5, 0,
+          N.Eb5, N.D5, N.C5, N.Bb4, N.C5, N.Eb5, N.D5, 0,
+          N.C5, N.D5, N.Eb5, N.F5, N.G5, N.Ab5, N.G5, N.F5,
+          N.Eb5, N.D5, N.C5, N.D5, N.Eb5, N.C5, 0, 0
+        ]
+      },
+      {
+        title: 'Stardust',
+        key: 'F major',
+        bpm: 125,
+        arpSpeed: 95,
+        style: 'Bubble Bobble / Paradroid',
+        desc: 'Bright and bouncy. Uplifting major key with a playful, catchy melody.',
+        chords: [
+          { bass: N.F3, arp: [N.F3, N.A3, N.C4] },
+          { bass: N.C3, arp: [N.C4, N.E4, N.G4] },
+          { bass: N.Bb2, arp: [N.Bb3, N.D4, N.F4] },
+          { bass: N.C3, arp: [N.C4, N.E4, N.G4] }
+        ],
+        melody: [
+          N.F5, N.A5, N.C6, N.A5, N.F5, N.G5, N.A5, 0,
+          N.G5, N.F5, N.E5, N.F5, N.G5, N.A5, N.G5, 0,
+          N.A5, N.G5, N.F5, N.E5, N.D5, N.E5, N.F5, N.G5,
+          N.A5, N.G5, N.F5, N.E5, N.F5, N.A5, 0, 0
+        ]
+      },
+      {
+        title: 'Iron Pulse',
+        key: 'B minor',
+        bpm: 165,
+        arpSpeed: 50,
+        style: 'Thrust / Uridium',
+        desc: 'Relentless and mechanical. Rapid-fire arpeggios with a hammering lead. Pure adrenaline.',
+        chords: [
+          { bass: N.B2, arp: [N.B3, N.D4, N.Gb4] },
+          { bass: N.G3, arp: [N.G3, N.B3, N.D4] },
+          { bass: N.A2, arp: [N.A3, N.Db4, N.E4] },
+          { bass: N.Gb3, arp: [N.Gb3, N.Bb3, N.Db4] }
+        ],
+        melody: [
+          N.Gb5, N.B5, N.Gb5, N.E5, N.D5, N.E5, N.Gb5, 0,
+          N.B5, N.A5, N.Gb5, N.E5, N.Gb5, N.A5, N.B5, 0,
+          N.D5, N.E5, N.Gb5, N.A5, N.B5, N.A5, N.Gb5, N.E5,
+          N.Gb5, N.E5, N.D5, N.B4, N.D5, N.E5, 0, 0
+        ]
+      },
+      {
+        title: 'Ocean Drift',
+        key: 'D major',
+        bpm: 115,
+        arpSpeed: 110,
+        style: 'Ocean Loader / Hawkeye',
+        desc: 'Gentle and expansive. Warm major chords with a soaring, unhurried melody. Wide open spaces.',
+        chords: [
+          { bass: N.D3, arp: [N.D4, N.Gb4, N.A4] },
+          { bass: N.A2, arp: [N.A3, N.Db4, N.E4] },
+          { bass: N.B2, arp: [N.B3, N.D4, N.Gb4] },
+          { bass: N.G3, arp: [N.G3, N.B3, N.D4] }
+        ],
+        melody: [
+          N.Gb5, N.A5, N.Gb5, N.D5, N.E5, N.Gb5, N.A5, 0,
+          N.B5, N.A5, N.Gb5, N.E5, N.D5, N.E5, N.Gb5, 0,
+          N.D5, N.E5, N.Gb5, N.A5, N.B5, N.A5, N.Gb5, N.E5,
+          N.D5, N.Gb5, N.A5, N.Gb5, N.D5, N.E5, 0, 0
+        ]
+      },
+      {
+        title: 'Voltage',
+        key: 'F minor',
+        bpm: 145,
+        arpSpeed: 70,
+        style: 'Nemesis / Armalyte',
+        desc: 'Tense and electric. Minor key urgency with stabbing lead notes. Danger incoming.',
+        chords: [
+          { bass: N.F3, arp: [N.F3, N.Ab3, N.C4] },
+          { bass: N.Db3, arp: [N.Db4, N.F4, N.Ab4] },
+          { bass: N.Eb3, arp: [N.Eb4, N.G4, N.Bb4] },
+          { bass: N.C3, arp: [N.C4, N.E4, N.G4] }
+        ],
+        melody: [
+          N.C5, N.F5, N.Ab5, N.F5, N.C5, N.Eb5, N.F5, 0,
+          N.Ab5, N.G5, N.F5, N.Eb5, N.Db5, N.Eb5, N.F5, 0,
+          N.F5, N.G5, N.Ab5, N.Bb5, N.Ab5, N.G5, N.F5, N.Eb5,
+          N.F5, N.Eb5, N.Db5, N.C5, N.Db5, N.F5, 0, 0
+        ]
+      },
+      {
+        title: 'Ghost Protocol',
+        key: 'Bb minor',
+        bpm: 138,
+        arpSpeed: 60,
+        style: 'Forbidden Forest / Cauldron',
+        desc: 'Eerie and suspenseful. Haunting minor phrases with an unsettling edge. Something lurks.',
+        chords: [
+          { bass: N.Bb2, arp: [N.Bb3, N.Db4, N.F4] },
+          { bass: N.Gb3, arp: [N.Gb3, N.Bb3, N.Db4] },
+          { bass: N.Ab3, arp: [N.Ab3, N.C4, N.Eb4] },
+          { bass: N.E3, arp: [N.E4, N.Ab4, N.B4] }
+        ],
+        melody: [
+          N.F5, N.Db5, N.Bb4, N.Db5, N.F5, N.Eb5, N.Db5, 0,
+          N.Bb4, N.Db5, N.Eb5, N.F5, N.Gb5, N.F5, N.Eb5, 0,
+          N.Db5, N.Eb5, N.F5, N.Gb5, N.F5, N.Eb5, N.Db5, N.C5,
+          N.Db5, N.F5, N.Eb5, N.Db5, N.Bb4, N.Db5, 0, 0
+        ]
+      }
+    ];
+
+    // ========== AUDIO ENGINE ==========
+
+    let audioCtx = null;
+    let musicPlaying = false;
+    let musicNodes = null;
+    let currentSongIndex = -1;
+    let vizBars = [];
+
+    function getAudioContext() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    }
+
+    function createPulseOsc(ctx, freq, pulseWidth = 0.25) {
+      const osc = ctx.createOscillator();
+      const real = new Float32Array(32);
+      const imag = new Float32Array(32);
+      real[0] = 0; imag[0] = 0;
+      for (let i = 1; i < 32; i++) {
+        imag[i] = (2 / (i * Math.PI)) * Math.sin(i * Math.PI * pulseWidth);
+      }
+      osc.setPeriodicWave(ctx.createPeriodicWave(real, imag));
+      osc.frequency.value = freq;
+      return osc;
+    }
+
+    function playSong(index) {
+      stopMusic();
+
+      const song = SONGS[index];
+      currentSongIndex = index;
+      musicPlaying = true;
+
+      // Update UI
+      document.querySelectorAll('.song-card').forEach((c, i) => {
+        c.classList.toggle('playing', i === index);
+      });
+      document.getElementById('now-playing').textContent = `Now playing: ${song.title}`;
+
+      try {
+        const ctx = getAudioContext();
+
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.value = -20;
+        compressor.knee.value = 10;
+        compressor.ratio.value = 4;
+        compressor.connect(ctx.destination);
+
+        // Analyser for visualizer
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 64;
+        analyser.connect(compressor);
+
+        const masterGain = ctx.createGain();
+        masterGain.gain.value = 0.25;
+        masterGain.connect(analyser);
+
+        const bassGain = ctx.createGain();
+        bassGain.gain.value = 0.5;
+        bassGain.connect(masterGain);
+
+        const arpGain = ctx.createGain();
+        arpGain.gain.value = 0.18;
+        arpGain.connect(masterGain);
+
+        const leadGain = ctx.createGain();
+        leadGain.gain.value = 0.35;
+        leadGain.connect(masterGain);
+
+        const { chords, melody, bpm, arpSpeed } = song;
+        const beatMs = 60000 / bpm;
+
+        let chordIndex = 0, beatInChord = 0, melodyIndex = 0, arpNoteIndex = 0;
+
+        function playBass(freq, duration) {
+          const osc = ctx.createOscillator();
+          const env = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          osc.connect(env);
+          env.connect(bassGain);
+          const now = ctx.currentTime;
+          env.gain.setValueAtTime(0.8, now);
+          env.gain.setValueAtTime(0.6, now + 0.05);
+          env.gain.exponentialRampToValueAtTime(0.01, now + duration - 0.05);
+          osc.start(now);
+          osc.stop(now + duration);
+        }
+
+        function playLead(freq, duration) {
+          if (freq === 0) return;
+          const osc = createPulseOsc(ctx, freq, 0.15 + Math.random() * 0.2);
+          const env = ctx.createGain();
+          const vibrato = ctx.createOscillator();
+          const vibratoGain = ctx.createGain();
+          vibrato.frequency.value = 5;
+          vibratoGain.gain.value = freq * 0.02;
+          vibrato.connect(vibratoGain);
+          vibratoGain.connect(osc.frequency);
+          osc.connect(env);
+          env.connect(leadGain);
+          const now = ctx.currentTime;
+          env.gain.setValueAtTime(0, now);
+          env.gain.linearRampToValueAtTime(0.7, now + 0.02);
+          env.gain.setValueAtTime(0.5, now + 0.08);
+          env.gain.exponentialRampToValueAtTime(0.01, now + duration - 0.02);
+          vibrato.start(now);
+          osc.start(now);
+          vibrato.stop(now + duration);
+          osc.stop(now + duration);
+        }
+
+        const arpFilter = ctx.createBiquadFilter();
+        arpFilter.type = 'lowpass';
+        arpFilter.frequency.value = 1200;
+        arpFilter.Q.value = 1;
+        arpFilter.connect(arpGain);
+
+        const arpIntervalId = setInterval(() => {
+          if (!musicPlaying) { clearInterval(arpIntervalId); return; }
+          const chord = chords[chordIndex];
+          const freq = chord.arp[arpNoteIndex % chord.arp.length];
+          arpNoteIndex++;
+          const osc = ctx.createOscillator();
+          const env = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          osc.connect(env);
+          env.connect(arpFilter);
+          const now = ctx.currentTime;
+          const duration = arpSpeed / 1000;
+          env.gain.setValueAtTime(0, now);
+          env.gain.linearRampToValueAtTime(0.5, now + duration * 0.1);
+          env.gain.setValueAtTime(0.4, now + duration * 0.3);
+          env.gain.exponentialRampToValueAtTime(0.01, now + duration * 0.95);
+          osc.start(now);
+          osc.stop(now + duration);
+        }, arpSpeed);
+
+        function scheduleBeat() {
+          if (!musicPlaying) return;
+          const chord = chords[chordIndex];
+          if (beatInChord === 0 || beatInChord === 2) {
+            playBass(chord.bass, beatMs / 1000 * 1.8);
+          }
+          playLead(melody[melodyIndex], beatMs / 1000 * 0.9);
+          melodyIndex = (melodyIndex + 1) % melody.length;
+          beatInChord++;
+          if (beatInChord >= 4) {
+            beatInChord = 0;
+            chordIndex = (chordIndex + 1) % chords.length;
+          }
+        }
+
+        scheduleBeat();
+        const mainIntervalId = setInterval(() => {
+          if (!musicPlaying) { clearInterval(mainIntervalId); clearInterval(arpIntervalId); return; }
+          scheduleBeat();
+        }, beatMs);
+
+        musicNodes = { masterGain, mainIntervalId, arpIntervalId, analyser };
+
+        // Start visualizer
+        startVisualizer(analyser);
+
+      } catch (e) {
+        console.error('Music error:', e);
+      }
+    }
+
+    function stopMusic() {
+      musicPlaying = false;
+      currentSongIndex = -1;
+      if (musicNodes) {
+        clearInterval(musicNodes.mainIntervalId);
+        clearInterval(musicNodes.arpIntervalId);
+        try {
+          musicNodes.masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+        } catch (e) {}
+        musicNodes = null;
+      }
+      document.querySelectorAll('.song-card').forEach(c => c.classList.remove('playing'));
+      document.getElementById('now-playing').textContent = '';
+      // Reset viz bars
+      vizBars.forEach(bar => bar.style.height = '2px');
+    }
+
+    // ========== VISUALIZER ==========
+
+    function initVisualizer() {
+      const container = document.getElementById('visualizer');
+      for (let i = 0; i < 24; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'viz-bar';
+        bar.style.height = '2px';
+        container.appendChild(bar);
+        vizBars.push(bar);
+      }
+    }
+
+    function startVisualizer(analyser) {
+      const data = new Uint8Array(analyser.frequencyBinCount);
+
+      function draw() {
+        if (!musicPlaying) return;
+        analyser.getByteFrequencyData(data);
+        for (let i = 0; i < vizBars.length; i++) {
+          const idx = Math.floor(i * data.length / vizBars.length);
+          const h = Math.max(2, (data[idx] / 255) * 40);
+          vizBars[i].style.height = h + 'px';
+        }
+        requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
+    // ========== UI ==========
+
+    function renderGrid() {
+      const grid = document.getElementById('grid');
+      SONGS.forEach((song, i) => {
+        const card = document.createElement('div');
+        card.className = 'song-card';
+        card.onclick = () => {
+          if (currentSongIndex === i) stopMusic();
+          else playSong(i);
+        };
+        card.innerHTML = `
+          <div class="song-title">${song.title}</div>
+          <div class="song-key">${song.key} - ${song.style}</div>
+          <div class="song-desc">${song.desc}</div>
+          <div class="song-meta">
+            <span>${song.bpm} BPM</span>
+            <span>Arp: ${song.arpSpeed}ms</span>
+            <span>${song.chords.length} chords</span>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    initVisualizer();
+    renderGrid();
+  </script>
+</body>
+</html>
