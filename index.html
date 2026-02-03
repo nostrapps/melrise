@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Tower Game</title>
+  <title>Skyrise - Tower Stacking Game</title>
   <style>
     * {
       margin: 0;
@@ -292,6 +292,281 @@
     .sound-toggle:hover {
       background: rgba(255, 255, 255, 0.2);
     }
+
+    .trophy-btn {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      color: #ffd700;
+      font-size: 1.5rem;
+      cursor: pointer;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .trophy-btn:hover {
+      background: rgba(255, 215, 0, 0.2);
+      transform: scale(1.1);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-content {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 20px;
+      padding: 2rem;
+      width: 90%;
+      max-width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #ffd700;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: #fff;
+    }
+
+    .login-section {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .login-status {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: #4ECDC4;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .login-status.logged-out {
+      color: #888;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #fff;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 0.5rem;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-login:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-logout {
+      width: 100%;
+      padding: 0.5rem;
+      font-size: 0.9rem;
+      color: #888;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .btn-logout:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .privkey-section {
+      margin-top: 1rem;
+    }
+
+    .privkey-input {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+
+    .privkey-input::placeholder {
+      color: #666;
+    }
+
+    .warning-text {
+      font-size: 0.75rem;
+      color: #ff6b6b;
+      margin-top: 0.5rem;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      margin: 1rem 0;
+      color: #666;
+      font-size: 0.8rem;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .divider span {
+      padding: 0 1rem;
+    }
+
+    .leaderboard-list {
+      list-style: none;
+    }
+
+    .leaderboard-item {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+    }
+
+    .leaderboard-item.you {
+      background: rgba(102, 126, 234, 0.2);
+      border: 1px solid rgba(102, 126, 234, 0.4);
+    }
+
+    .leaderboard-rank {
+      width: 2rem;
+      font-weight: bold;
+      color: #ffd700;
+    }
+
+    .leaderboard-rank.gold { color: #ffd700; }
+    .leaderboard-rank.silver { color: #c0c0c0; }
+    .leaderboard-rank.bronze { color: #cd7f32; }
+
+    .leaderboard-name {
+      flex: 1;
+      color: #fff;
+      font-size: 0.9rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .leaderboard-score {
+      font-weight: bold;
+      color: #4ECDC4;
+      font-size: 1rem;
+    }
+
+    .leaderboard-loading, .leaderboard-empty {
+      text-align: center;
+      color: #888;
+      padding: 2rem;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(78, 205, 196, 0.9);
+      color: #000;
+      padding: 0.75rem 1.5rem;
+      border-radius: 25px;
+      font-weight: bold;
+      font-size: 0.9rem;
+      z-index: 200;
+      animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 2.7s forwards;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translate(-50%, 20px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    @keyframes toastOut {
+      from { opacity: 1; transform: translate(-50%, 0); }
+      to { opacity: 0; transform: translate(-50%, -20px); }
+    }
+
+    .powered-by {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.75rem;
+      color: #666;
+    }
+
+    .powered-by a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    .powered-by a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -301,6 +576,7 @@
     import { h, render } from 'https://esm.sh/preact@10.19.3';
     import { useState, useEffect, useRef, useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
     import htm from 'https://esm.sh/htm@3.1.1';
+    import * as nostr from './nostr.js';
 
     const html = htm.bind(h);
 
@@ -774,6 +1050,92 @@
       const [showFlash, setShowFlash] = useState('');
       const [shake, setShake] = useState('');
 
+      // Nostr state
+      const [nostrUser, setNostrUser] = useState(null);
+      const [showLeaderboard, setShowLeaderboard] = useState(false);
+      const [leaderboard, setLeaderboard] = useState([]);
+      const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+      const [toast, setToast] = useState('');
+      const [privkeyInput, setPrivkeyInput] = useState('');
+
+      // Try to restore Nostr session on mount
+      useEffect(() => {
+        nostr.restoreSession().then(pubkey => {
+          if (pubkey) setNostrUser({ pubkey });
+        });
+      }, []);
+
+      // Show toast notification
+      const showToast = (message) => {
+        setToast(message);
+        setTimeout(() => setToast(''), 3000);
+      };
+
+      // Refresh leaderboard
+      const refreshLeaderboard = async () => {
+        setLeaderboardLoading(true);
+        try {
+          const scores = await nostr.fetchLeaderboard(10);
+          const pubkeys = scores.map(s => s.pubkey);
+          const metadata = await nostr.fetchMetadata(pubkeys);
+          const enriched = scores.map(s => ({
+            ...s,
+            name: metadata.get(s.pubkey)?.name || nostr.formatPubkey(s.pubkey)
+          }));
+          setLeaderboard(enriched);
+        } catch (err) {
+          console.error('Leaderboard error:', err);
+        }
+        setLeaderboardLoading(false);
+      };
+
+      // Login with extension
+      const handleExtensionLogin = async () => {
+        try {
+          const pubkey = await nostr.loginWithExtension();
+          setNostrUser({ pubkey });
+          showToast('Logged in!');
+          refreshLeaderboard();
+        } catch (err) {
+          showToast(err.message);
+        }
+      };
+
+      // Login with private key
+      const handlePrivkeyLogin = async () => {
+        if (!privkeyInput.trim()) return;
+        try {
+          const pubkey = await nostr.loginWithPrivkey(privkeyInput);
+          setNostrUser({ pubkey });
+          setPrivkeyInput('');
+          showToast('Logged in!');
+          refreshLeaderboard();
+        } catch (err) {
+          showToast(err.message);
+        }
+      };
+
+      // Logout
+      const handleLogout = () => {
+        nostr.logout();
+        setNostrUser(null);
+        showToast('Logged out');
+      };
+
+      // Publish score to Nostr
+      const publishScore = async (finalScore) => {
+        if (!nostrUser) return;
+        try {
+          const result = await nostr.publishScore(finalScore);
+          if (result) {
+            showToast('High score saved to Nostr!');
+            setTimeout(refreshLeaderboard, 1500);
+          }
+        } catch (err) {
+          console.error('Publish error:', err);
+        }
+      };
+
       // Get streak message and class
       const getStreakInfo = (count) => {
         if (count >= 10) return { text: 'LEGENDARY!', class: 'streak-10', flash: 'flash-legendary' };
@@ -911,6 +1273,8 @@
                       setHighScore(score);
                       localStorage.setItem('towerHighScore', score.toString());
                     }
+                    // Publish score to Nostr if logged in
+                    publishScore(score);
                   }
                   return newHealth;
                 });
@@ -1076,18 +1440,100 @@
         </button>
       `;
 
+      // Trophy button to open leaderboard
+      const TrophyButton = () => html`
+        <button class="trophy-btn" onClick=${() => { setShowLeaderboard(true); refreshLeaderboard(); }}>
+          🏆
+        </button>
+      `;
+
+      // Leaderboard modal
+      const LeaderboardModal = () => {
+        if (!showLeaderboard) return null;
+
+        const hasExtension = nostr.hasExtension();
+
+        return html`
+          <div class="modal-overlay" onClick=${(e) => e.target === e.currentTarget && setShowLeaderboard(false)}>
+            <div class="modal-content">
+              <div class="modal-header">
+                <div class="modal-title">🏆 Leaderboard</div>
+                <button class="modal-close" onClick=${() => setShowLeaderboard(false)}>×</button>
+              </div>
+
+              <div class="login-section">
+                ${nostrUser ? html`
+                  <div class="login-status">
+                    ✓ Logged in as ${nostr.formatPubkey(nostrUser.pubkey)}
+                  </div>
+                  <button class="btn-logout" onClick=${handleLogout}>Logout</button>
+                ` : html`
+                  <div class="login-status logged-out">Not logged in</div>
+                  ${hasExtension && html`
+                    <button class="btn-login" onClick=${handleExtensionLogin}>
+                      Login with Extension
+                    </button>
+                  `}
+                  <div class="privkey-section">
+                    ${!hasExtension && html`<div class="divider"><span>or</span></div>`}
+                    <input
+                      type="password"
+                      class="privkey-input"
+                      placeholder="Enter nsec or hex private key"
+                      value=${privkeyInput}
+                      onInput=${(e) => setPrivkeyInput(e.target.value)}
+                      onKeyDown=${(e) => e.key === 'Enter' && handlePrivkeyLogin()}
+                    />
+                    <button class="btn-login" onClick=${handlePrivkeyLogin} disabled=${!privkeyInput.trim()}>
+                      Login with Key
+                    </button>
+                    <div class="warning-text">⚠️ Using a browser extension is safer</div>
+                  </div>
+                `}
+              </div>
+
+              ${leaderboardLoading ? html`
+                <div class="leaderboard-loading">Loading...</div>
+              ` : leaderboard.length === 0 ? html`
+                <div class="leaderboard-empty">No scores yet. Be the first!</div>
+              ` : html`
+                <ul class="leaderboard-list">
+                  ${leaderboard.map((entry, i) => html`
+                    <li class="leaderboard-item ${nostrUser && entry.pubkey === nostrUser.pubkey ? 'you' : ''}">
+                      <span class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">#${i + 1}</span>
+                      <span class="leaderboard-name">${entry.name}</span>
+                      <span class="leaderboard-score">${entry.score.toLocaleString()}</span>
+                    </li>
+                  `)}
+                </ul>
+              `}
+
+              <div class="powered-by">
+                Powered by <a href="https://nostr.com" target="_blank">Nostr</a>
+              </div>
+            </div>
+          </div>
+        `;
+      };
+
+      // Toast notification
+      const Toast = () => toast ? html`<div class="toast">${toast}</div>` : null;
+
       // Render start screen
       if (gamePhase === 'start') {
         return html`
           <div>
             <canvas ref=${canvasRef} onClick=${startGame} style="cursor: pointer" />
             <div class="overlay">
-              <div class="title">🏗️ Tower</div>
+              <div class="title">🏗️ Skyrise</div>
               <div class="subtitle">Stack blocks to build your tower!</div>
               <button class="btn" onClick=${startGame}>Start Game</button>
               <div class="instructions">Tap or click to drop blocks</div>
             </div>
+            <${TrophyButton} />
             <${SoundButton} />
+            <${LeaderboardModal} />
+            <${Toast} />
           </div>
         `;
       }
@@ -1103,7 +1549,10 @@
               <div class="high-score">High Score: ${highScore}</div>
               <button class="btn" onClick=${startGame}>Play Again</button>
             </div>
+            <${TrophyButton} />
             <${SoundButton} />
+            <${LeaderboardModal} />
+            <${Toast} />
           </div>
         `;
       }
@@ -1137,7 +1586,10 @@
             </div>
           `}
           ${showFlash && html`<div class="screen-flash ${showFlash}"></div>`}
+          <${TrophyButton} />
           <${SoundButton} />
+          <${LeaderboardModal} />
+          <${Toast} />
         </div>
       `;
     }
