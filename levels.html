@@ -791,10 +791,20 @@
       return audioCtx;
     }
 
+    // Note frequencies lookup (shared across all levels)
+    const NOTE = {
+      A2: 110.00, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00,
+      A3: 220.00, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00,
+      A4: 440.00, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99,
+      A5: 880.00
+    };
+
     // C64 SID-style Background Music Generator
     // Inspired by Rob Hubbard, Martin Galway, Ben Daglish
-    function startBackgroundMusic() {
+    function startBackgroundMusic(levelIndex = 0) {
       if (musicPlaying || !soundEnabled) return;
+
+      const levelMusic = LEVELS[levelIndex].music;
 
       try {
         const ctx = getAudioContext();
@@ -823,39 +833,12 @@
         leadGain.gain.value = 0.35;
         leadGain.connect(masterGain);
 
-        // Note frequencies (A minor - classic game music key)
-        const NOTE = {
-          A2: 110.00, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00,
-          A3: 220.00, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00,
-          A4: 440.00, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99,
-          A5: 880.00
-        };
-
-        // Chord progression: Am - F - C - G (i - VI - III - VII in A minor)
-        // Classic dramatic game music progression
-        // Using lower octave for smoother arpeggio
-        const chords = [
-          { bass: NOTE.A2, arp: [NOTE.A3, NOTE.C4, NOTE.E4] },      // Am
-          { bass: NOTE.F3, arp: [NOTE.F3, NOTE.A3, NOTE.C4] },      // F
-          { bass: NOTE.C3, arp: [NOTE.C3, NOTE.E3, NOTE.G3] },      // C
-          { bass: NOTE.G3, arp: [NOTE.G3, NOTE.B3, NOTE.D4] }       // G
-        ];
-
-        // Lead melody (Rob Hubbard style - energetic, memorable)
-        const melody = [
-          // Phrase 1
-          NOTE.E5, NOTE.E5, NOTE.D5, NOTE.C5, NOTE.D5, NOTE.E5, NOTE.A4, 0,
-          // Phrase 2
-          NOTE.E5, NOTE.G5, NOTE.A5, NOTE.G5, NOTE.E5, NOTE.D5, NOTE.C5, 0,
-          // Phrase 3
-          NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5, NOTE.E5, NOTE.D5, NOTE.C5, NOTE.D5,
-          // Phrase 4
-          NOTE.E5, NOTE.D5, NOTE.C5, NOTE.A4, NOTE.G4, NOTE.A4, 0, 0
-        ];
-
-        const BPM = 140; // Upbeat tempo like classic C64 games
+        // Get level-specific music data
+        const chords = levelMusic.chords(NOTE);
+        const melody = levelMusic.melody(NOTE);
+        const BPM = levelMusic.bpm;
         const beatMs = 60000 / BPM;
-        const arpSpeed = 80; // Slower, smoother arpeggio (12.5Hz)
+        const arpSpeed = levelMusic.arpSpeed;
 
         let chordIndex = 0;
         let beatInChord = 0;
@@ -1450,23 +1433,109 @@
     const REGROWTH_STREAK_THRESHOLD = 3;
     const REGROWTH_AMOUNT = 15;
 
-    // Level definitions
+    // Level definitions with per-level theming
     const LEVELS = [
-      { id: 1, name: 'Foundation',   goal: 10, speedMult: 0.8, startWidth: 200, bg: '#0f3460' },
-      { id: 2, name: 'Skyscraper',   goal: 15, speedMult: 1.0, startWidth: 190, bg: '#1a3a5c' },
-      { id: 3, name: 'Stratosphere', goal: 20, speedMult: 1.2, startWidth: 180, bg: '#2a1a4e' },
-      { id: null, name: 'Endless',   goal: Infinity, speedMult: 1.0, startWidth: 200, bg: '#0f3460' }
+      {
+        id: 1, name: 'Foundation', goal: 10, speedMult: 0.8, startWidth: 200,
+        bgGradient: ['#0a1628', '#0f3460', '#1a5276', '#21618c'],
+        colors: ['#96CEB4', '#88D8B0', '#FFEAA7', '#DDA0DD', '#98D8C8', '#B5EAD7', '#C7CEEA', '#FFD93D', '#A8E6CF', '#95E1D3'],
+        music: {
+          key: 'C major',
+          bpm: 120,
+          chords: (N) => [
+            { bass: N.C3, arp: [N.C4, N.E4, N.G4] },     // C
+            { bass: N.G3, arp: [N.G3, N.B3, N.D4] },     // G
+            { bass: N.A2, arp: [N.A3, N.C4, N.E4] },     // Am
+            { bass: N.F3, arp: [N.F3, N.A3, N.C4] }      // F
+          ],
+          melody: (N) => [
+            N.C5, N.E5, N.G5, N.E5, N.C5, N.D5, N.E5, 0,
+            N.G5, N.E5, N.D5, N.C5, N.D5, N.E5, N.C5, 0,
+            N.E5, N.G5, N.A5, N.G5, N.E5, N.D5, N.C5, N.D5,
+            N.E5, N.D5, N.C5, N.G4, N.A4, N.C5, 0, 0
+          ],
+          arpSpeed: 100
+        }
+      },
+      {
+        id: 2, name: 'Skyscraper', goal: 15, speedMult: 1.0, startWidth: 190,
+        bgGradient: ['#0a0a15', '#1a1a2e', '#16213e', '#0f3460'],
+        colors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8B500', '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9'],
+        music: {
+          key: 'A minor',
+          bpm: 140,
+          chords: (N) => [
+            { bass: N.A2, arp: [N.A3, N.C4, N.E4] },     // Am
+            { bass: N.F3, arp: [N.F3, N.A3, N.C4] },     // F
+            { bass: N.C3, arp: [N.C3, N.E3, N.G3] },     // C
+            { bass: N.G3, arp: [N.G3, N.B3, N.D4] }      // G
+          ],
+          melody: (N) => [
+            N.E5, N.E5, N.D5, N.C5, N.D5, N.E5, N.A4, 0,
+            N.E5, N.G5, N.A5, N.G5, N.E5, N.D5, N.C5, 0,
+            N.C5, N.D5, N.E5, N.G5, N.E5, N.D5, N.C5, N.D5,
+            N.E5, N.D5, N.C5, N.A4, N.G4, N.A4, 0, 0
+          ],
+          arpSpeed: 80
+        }
+      },
+      {
+        id: 3, name: 'Stratosphere', goal: 20, speedMult: 1.2, startWidth: 180,
+        bgGradient: ['#0a0015', '#1a0a2e', '#2a1a4e', '#3d1f6d'],
+        colors: ['#A855F7', '#8B5CF6', '#7C3AED', '#6366F1', '#818CF8', '#C084FC', '#E879F9', '#F0ABFC', '#67E8F9', '#22D3EE', '#06B6D4', '#A78BFA'],
+        music: {
+          key: 'E minor',
+          bpm: 160,
+          chords: (N) => [
+            { bass: N.E3, arp: [N.E4, N.G4, N.B4] },     // Em
+            { bass: N.C3, arp: [N.C4, N.E4, N.G4] },     // C
+            { bass: N.G3, arp: [N.G3, N.B3, N.D4] },     // G
+            { bass: N.D3, arp: [N.D4, N.F4, N.A4] }      // Dm
+          ],
+          melody: (N) => [
+            N.B4, N.E5, N.G5, N.E5, N.B4, N.E5, N.G5, N.A5,
+            N.G5, N.E5, N.D5, N.E5, N.B4, 0, N.E5, 0,
+            N.G5, N.A5, N.G5, N.E5, N.D5, N.E5, N.G5, N.E5,
+            N.B4, N.D5, N.E5, N.D5, N.B4, N.A4, 0, 0
+          ],
+          arpSpeed: 65
+        }
+      },
+      {
+        id: null, name: 'Endless', goal: Infinity, speedMult: 1.0, startWidth: 200,
+        bgGradient: ['#1a0a00', '#2d1506', '#451a0a', '#5c1a0a'],
+        colors: ['#FF4500', '#FF6347', '#FF7F50', '#FFA500', '#FFD700', '#FF8C00', '#DC143C', '#FF1493', '#FFB347', '#FF6B6B', '#E74C3C', '#F39C12'],
+        music: {
+          key: 'D minor',
+          bpm: 150,
+          chords: (N) => [
+            { bass: N.D3, arp: [N.D4, N.F4, N.A4] },     // Dm
+            { bass: N.A2, arp: [N.A3, N.C4, N.E4] },     // Am
+            { bass: N.F3, arp: [N.F3, N.A3, N.C4] },     // F
+            { bass: N.C3, arp: [N.C4, N.E4, N.G4] }      // C
+          ],
+          melody: (N) => [
+            N.D5, N.F5, N.A5, N.F5, N.D5, N.E5, N.F5, 0,
+            N.A5, N.G5, N.F5, N.E5, N.D5, N.F5, N.E5, 0,
+            N.D5, N.E5, N.F5, N.A5, N.G5, N.F5, N.E5, N.F5,
+            N.A5, N.G5, N.F5, N.D5, N.E5, N.D5, 0, 0
+          ],
+          arpSpeed: 70
+        }
+      }
     ];
 
-    // Color palette for blocks
+    // Default color palette (fallback)
     const COLORS = [
       '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
       '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
       '#F8B500', '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9'
     ];
 
+    let currentLevelColors = COLORS;
+
     function getBlockColor(index) {
-      return COLORS[index % COLORS.length];
+      return currentLevelColors[index % currentLevelColors.length];
     }
 
     // Create gradient for block
@@ -1866,6 +1935,7 @@
         setGameStats({ blocks: 0, perfects: 0, maxStreak: 0 });
         setIsNewHighScore(false);
         setShowRegrowth(false);
+        currentLevelColors = LEVELS[0].colors;
       }, []);
 
       // Handle canvas resize
@@ -2174,12 +2244,13 @@
           ctx.save();
           ctx.translate(state.shakeX, state.shakeY);
 
-          // Draw gradient background
+          // Draw gradient background (per-level themed)
+          const bgColors = LEVELS[state.currentLevel].bgGradient;
           const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-          gradient.addColorStop(0, '#0a0a15');
-          gradient.addColorStop(0.3, '#1a1a2e');
-          gradient.addColorStop(0.7, '#16213e');
-          gradient.addColorStop(1, '#0f3460');
+          gradient.addColorStop(0, bgColors[0]);
+          gradient.addColorStop(0.3, bgColors[1]);
+          gradient.addColorStop(0.7, bgColors[2]);
+          gradient.addColorStop(1, bgColors[3]);
           ctx.fillStyle = gradient;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -2324,8 +2395,9 @@
       const startGame = () => {
         playSound('start');
         initGame();
+        currentLevelColors = LEVELS[0].colors;
         setGamePhase('playing');
-        setTimeout(() => startBackgroundMusic(), 500);
+        setTimeout(() => startBackgroundMusic(0), 500);
       };
 
       // Continue to next level (keeps score, resets tower and health)
@@ -2369,11 +2441,18 @@
         state.levelBlocks = 0;
         state.stars = createStars(canvas.width, canvas.height);
 
+        // Switch to level theme
+        currentLevelColors = level.colors;
+
         setCurrentLevel(nextLevel);
         setLevelBlocks(0);
         setHealth(MAX_HEALTH); // Health reset as reward
         setStreak(0);
         setGamePhase('playing');
+
+        // Restart music with new level's tune
+        stopBackgroundMusic();
+        setTimeout(() => startBackgroundMusic(nextLevel), 500);
       };
 
       // Sound toggle button component
