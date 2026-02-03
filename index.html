@@ -196,115 +196,204 @@
       return audioCtx;
     }
 
-    // Background music generator
+    // C64 SID-style Background Music Generator
+    // Inspired by Rob Hubbard, Martin Galway, Ben Daglish
     function startBackgroundMusic() {
       if (musicPlaying || !soundEnabled) return;
 
       try {
         const ctx = getAudioContext();
 
-        // Create nodes
-        const masterGain = ctx.createGain();
-        masterGain.gain.value = 0.15;
-        masterGain.connect(ctx.destination);
+        // Master output with compression for that punchy SID feel
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.value = -20;
+        compressor.knee.value = 10;
+        compressor.ratio.value = 4;
+        compressor.connect(ctx.destination);
 
-        // Bass line
+        const masterGain = ctx.createGain();
+        masterGain.gain.value = 0.25;
+        masterGain.connect(compressor);
+
+        // Channel gains (3 channels like SID)
         const bassGain = ctx.createGain();
-        bassGain.gain.value = 0.4;
+        bassGain.gain.value = 0.5;
         bassGain.connect(masterGain);
 
-        // Melody
-        const melodyGain = ctx.createGain();
-        melodyGain.gain.value = 0.3;
-        melodyGain.connect(masterGain);
-
-        // Arpeggio
         const arpGain = ctx.createGain();
-        arpGain.gain.value = 0.2;
+        arpGain.gain.value = 0.25;
         arpGain.connect(masterGain);
 
-        // Musical notes (C major pentatonic)
-        const bassNotes = [65.41, 82.41, 98.00, 82.41]; // C2, E2, G2, E2
-        const melodyNotes = [523.25, 587.33, 659.25, 783.99, 659.25, 587.33]; // C5, D5, E5, G5, E5, D5
-        const arpNotes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+        const leadGain = ctx.createGain();
+        leadGain.gain.value = 0.35;
+        leadGain.connect(masterGain);
 
-        const bpm = 120;
-        const beatDuration = 60 / bpm;
+        // Note frequencies (A minor - classic game music key)
+        const NOTE = {
+          A2: 110.00, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00,
+          A3: 220.00, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00,
+          A4: 440.00, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99,
+          A5: 880.00
+        };
 
-        let bassIndex = 0;
+        // Chord progression: Am - F - C - G (i - VI - III - VII in A minor)
+        // Classic dramatic game music progression
+        const chords = [
+          { bass: NOTE.A2, arp: [NOTE.A4, NOTE.C5, NOTE.E5] },      // Am
+          { bass: NOTE.F3, arp: [NOTE.F4, NOTE.A4, NOTE.C5] },      // F
+          { bass: NOTE.C3, arp: [NOTE.C4, NOTE.E4, NOTE.G4] },      // C
+          { bass: NOTE.G3, arp: [NOTE.G4, NOTE.B4, NOTE.D5] }       // G
+        ];
+
+        // Lead melody (Rob Hubbard style - energetic, memorable)
+        const melody = [
+          // Phrase 1
+          NOTE.E5, NOTE.E5, NOTE.D5, NOTE.C5, NOTE.D5, NOTE.E5, NOTE.A4, 0,
+          // Phrase 2
+          NOTE.E5, NOTE.G5, NOTE.A5, NOTE.G5, NOTE.E5, NOTE.D5, NOTE.C5, 0,
+          // Phrase 3
+          NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5, NOTE.E5, NOTE.D5, NOTE.C5, NOTE.D5,
+          // Phrase 4
+          NOTE.E5, NOTE.D5, NOTE.C5, NOTE.A4, NOTE.G4, NOTE.A4, 0, 0
+        ];
+
+        const BPM = 140; // Upbeat tempo like classic C64 games
+        const beatMs = 60000 / BPM;
+        const arpSpeed = 25; // ~40Hz arpeggio rate (SID style fake chords)
+
+        let chordIndex = 0;
+        let beatInChord = 0;
         let melodyIndex = 0;
-        let arpIndex = 0;
-        let beatCount = 0;
+        let arpNoteIndex = 0;
 
-        // Schedule notes
-        function scheduleNotes() {
-          if (!musicPlaying || !soundEnabled) return;
-
-          const now = ctx.currentTime;
-
-          // Bass (every 2 beats)
-          if (beatCount % 2 === 0) {
-            const bassOsc = ctx.createOscillator();
-            const bassEnv = ctx.createGain();
-            bassOsc.type = 'triangle';
-            bassOsc.frequency.value = bassNotes[bassIndex % bassNotes.length];
-            bassOsc.connect(bassEnv);
-            bassEnv.connect(bassGain);
-            bassEnv.gain.setValueAtTime(0.8, now);
-            bassEnv.gain.exponentialRampToValueAtTime(0.01, now + beatDuration * 1.8);
-            bassOsc.start(now);
-            bassOsc.stop(now + beatDuration * 2);
-            bassIndex++;
+        // Create pulse-like wave for lead (PWM simulation)
+        function createPulseOsc(freq, pulseWidth = 0.25) {
+          const osc = ctx.createOscillator();
+          const real = new Float32Array(32);
+          const imag = new Float32Array(32);
+          real[0] = 0;
+          imag[0] = 0;
+          for (let i = 1; i < 32; i++) {
+            // Attempt pulse-like harmonics
+            imag[i] = (2 / (i * Math.PI)) * Math.sin(i * Math.PI * pulseWidth);
           }
-
-          // Melody (every 4 beats)
-          if (beatCount % 4 === 0) {
-            const melOsc = ctx.createOscillator();
-            const melEnv = ctx.createGain();
-            melOsc.type = 'sine';
-            melOsc.frequency.value = melodyNotes[melodyIndex % melodyNotes.length];
-            melOsc.connect(melEnv);
-            melEnv.connect(melodyGain);
-            melEnv.gain.setValueAtTime(0.6, now);
-            melEnv.gain.exponentialRampToValueAtTime(0.01, now + beatDuration * 3.5);
-            melOsc.start(now);
-            melOsc.stop(now + beatDuration * 4);
-            melodyIndex++;
-          }
-
-          // Arpeggio (every beat)
-          const arpOsc = ctx.createOscillator();
-          const arpEnv = ctx.createGain();
-          arpOsc.type = 'square';
-          arpOsc.frequency.value = arpNotes[arpIndex % arpNotes.length];
-          arpOsc.connect(arpEnv);
-          arpEnv.connect(arpGain);
-          arpEnv.gain.setValueAtTime(0.3, now);
-          arpEnv.gain.exponentialRampToValueAtTime(0.01, now + beatDuration * 0.8);
-          arpOsc.start(now);
-          arpOsc.stop(now + beatDuration);
-          arpIndex++;
-
-          beatCount++;
+          const wave = ctx.createPeriodicWave(real, imag);
+          osc.setPeriodicWave(wave);
+          osc.frequency.value = freq;
+          return osc;
         }
 
-        // Start the loop
+        // Bass note (triangle wave - classic SID bass)
+        function playBass(freq, duration) {
+          const osc = ctx.createOscillator();
+          const env = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          osc.connect(env);
+          env.connect(bassGain);
+          const now = ctx.currentTime;
+          env.gain.setValueAtTime(0.8, now);
+          env.gain.setValueAtTime(0.6, now + 0.05);
+          env.gain.exponentialRampToValueAtTime(0.01, now + duration - 0.05);
+          osc.start(now);
+          osc.stop(now + duration);
+        }
+
+        // Lead note with vibrato (SID style)
+        function playLead(freq, duration) {
+          if (freq === 0) return;
+          const osc = createPulseOsc(freq, 0.15 + Math.random() * 0.2);
+          const env = ctx.createGain();
+          const vibrato = ctx.createOscillator();
+          const vibratoGain = ctx.createGain();
+
+          vibrato.frequency.value = 5; // 5Hz vibrato
+          vibratoGain.gain.value = freq * 0.02; // 2% pitch variation
+          vibrato.connect(vibratoGain);
+          vibratoGain.connect(osc.frequency);
+
+          osc.connect(env);
+          env.connect(leadGain);
+
+          const now = ctx.currentTime;
+          env.gain.setValueAtTime(0, now);
+          env.gain.linearRampToValueAtTime(0.7, now + 0.02);
+          env.gain.setValueAtTime(0.5, now + 0.08);
+          env.gain.exponentialRampToValueAtTime(0.01, now + duration - 0.02);
+
+          vibrato.start(now);
+          osc.start(now);
+          vibrato.stop(now + duration);
+          osc.stop(now + duration);
+        }
+
+        // Fast arpeggio (50Hz SID style chord simulation)
+        let arpIntervalId = null;
+        function startArpeggio() {
+          arpIntervalId = setInterval(() => {
+            if (!musicPlaying || !soundEnabled) {
+              clearInterval(arpIntervalId);
+              return;
+            }
+            const chord = chords[chordIndex];
+            const freq = chord.arp[arpNoteIndex % chord.arp.length];
+            arpNoteIndex++;
+
+            const osc = ctx.createOscillator();
+            const env = ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.value = freq;
+            osc.connect(env);
+            env.connect(arpGain);
+
+            const now = ctx.currentTime;
+            env.gain.setValueAtTime(0.4, now);
+            env.gain.exponentialRampToValueAtTime(0.01, now + arpSpeed / 1000 * 0.9);
+            osc.start(now);
+            osc.stop(now + arpSpeed / 1000);
+          }, arpSpeed);
+        }
+
+        // Main beat scheduler
+        function scheduleBeat() {
+          if (!musicPlaying || !soundEnabled) return;
+
+          const chord = chords[chordIndex];
+
+          // Bass on beats 1 and 3
+          if (beatInChord === 0 || beatInChord === 2) {
+            playBass(chord.bass, beatMs / 1000 * 1.8);
+          }
+
+          // Melody every beat
+          playLead(melody[melodyIndex], beatMs / 1000 * 0.9);
+          melodyIndex = (melodyIndex + 1) % melody.length;
+
+          beatInChord++;
+          if (beatInChord >= 4) {
+            beatInChord = 0;
+            chordIndex = (chordIndex + 1) % chords.length;
+          }
+        }
+
+        // Start the music
         musicPlaying = true;
-        const intervalId = setInterval(() => {
+        startArpeggio();
+        scheduleBeat();
+        const mainIntervalId = setInterval(() => {
           if (!musicPlaying || !soundEnabled) {
-            clearInterval(intervalId);
+            clearInterval(mainIntervalId);
+            clearInterval(arpIntervalId);
             return;
           }
-          scheduleNotes();
-        }, beatDuration * 1000);
+          scheduleBeat();
+        }, beatMs);
 
         musicNodes = {
           masterGain,
-          intervalId
+          intervalId: mainIntervalId,
+          arpIntervalId
         };
-
-        // Play first notes immediately
-        scheduleNotes();
 
       } catch (e) {
         console.log('Music error:', e);
@@ -315,8 +404,9 @@
       musicPlaying = false;
       if (musicNodes) {
         clearInterval(musicNodes.intervalId);
+        if (musicNodes.arpIntervalId) clearInterval(musicNodes.arpIntervalId);
         try {
-          musicNodes.masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+          musicNodes.masterGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
         } catch (e) {}
         musicNodes = null;
       }
