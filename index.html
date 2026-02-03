@@ -1154,85 +1154,137 @@
       }
     }
 
-    // Generate share image
-    async function generateShareImage(score, stats, isNewHighScore) {
+    // Generate share image with tower screenshot
+    async function generateShareImage(score, stats, isNewHighScore, towerSnapshot) {
       const canvas = document.createElement('canvas');
-      canvas.width = 600;
-      canvas.height = 400;
+      canvas.width = 800;
+      canvas.height = 500;
       const ctx = canvas.getContext('2d');
 
       // Background gradient
-      const gradient = ctx.createLinearGradient(0, 0, 600, 400);
+      const gradient = ctx.createLinearGradient(0, 0, 800, 500);
       gradient.addColorStop(0, '#1a1a2e');
       gradient.addColorStop(0.5, '#16213e');
       gradient.addColorStop(1, '#0f3460');
       ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 600, 400);
+      ctx.fillRect(0, 0, 800, 500);
 
       // Add some stars
       ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      for (let i = 0; i < 30; i++) {
-        const x = Math.random() * 600;
-        const y = Math.random() * 400;
+      for (let i = 0; i < 40; i++) {
+        const x = Math.random() * 800;
+        const y = Math.random() * 500;
         const size = Math.random() * 2 + 0.5;
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fill();
       }
 
+      // Draw tower screenshot on left side
+      const towerAreaX = 20;
+      const towerAreaY = 20;
+      const towerAreaW = 280;
+      const towerAreaH = 460;
+
+      if (towerSnapshot) {
+        // Load snapshot image
+        const img = await new Promise((resolve, reject) => {
+          const i = new Image();
+          i.onload = () => resolve(i);
+          i.onerror = reject;
+          i.src = towerSnapshot;
+        });
+
+        // Draw rounded frame background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.beginPath();
+        ctx.roundRect(towerAreaX, towerAreaY, towerAreaW, towerAreaH, 15);
+        ctx.fill();
+
+        // Clip to rounded rectangle
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(towerAreaX + 2, towerAreaY + 2, towerAreaW - 4, towerAreaH - 4, 13);
+        ctx.clip();
+
+        // Scale and center the tower screenshot
+        const scale = Math.max(towerAreaW / img.width, towerAreaH / img.height);
+        const drawW = img.width * scale;
+        const drawH = img.height * scale;
+        const drawX = towerAreaX + (towerAreaW - drawW) / 2;
+        const drawY = towerAreaY + (towerAreaH - drawH) / 2;
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+        ctx.restore();
+
+        // Frame border
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(towerAreaX, towerAreaY, towerAreaW, towerAreaH, 15);
+        ctx.stroke();
+      }
+
+      // Right side - stats area
+      const rightX = 480;
+
       // Title
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 36px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('🏗️ SKYRISE', 300, 50);
+      ctx.fillText('SKYRISE', rightX, 55);
 
       // Score
       ctx.fillStyle = '#ffd700';
-      ctx.font = 'bold 72px -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.fillText(score.toLocaleString(), 300, 140);
+      ctx.font = 'bold 64px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(score.toLocaleString(), rightX, 130);
 
       // New high score badge
       if (isNewHighScore) {
         ctx.fillStyle = '#ffd700';
-        ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.fillText('🎉 NEW HIGH SCORE! 🎉', 300, 175);
+        ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillText('NEW HIGH SCORE!', rightX, 165);
       }
 
-      // Stats boxes
-      const statY = 230;
-      const stats_data = [
-        { label: 'BLOCKS', value: stats.blocks, x: 120 },
-        { label: 'PERFECTS', value: stats.perfects, x: 300 },
-        { label: 'BEST STREAK', value: stats.maxStreak + 'x', x: 480 }
+      // Stats - vertical layout on right side
+      const statsStartY = isNewHighScore ? 200 : 185;
+      const statsData = [
+        { label: 'BLOCKS', value: String(stats.blocks) },
+        { label: 'PERFECTS', value: String(stats.perfects) },
+        { label: 'BEST STREAK', value: stats.maxStreak + 'x' }
       ];
 
-      stats_data.forEach(stat => {
+      statsData.forEach((stat, i) => {
+        const y = statsStartY + i * 75;
+
         // Box background
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.beginPath();
-        ctx.roundRect(stat.x - 60, statY - 30, 120, 70, 10);
+        ctx.roundRect(rightX - 110, y, 220, 60, 10);
         ctx.fill();
 
         // Value
         ctx.fillStyle = '#4ECDC4';
-        ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.fillText(stat.value, stat.x, statY + 5);
+        ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(stat.value, rightX, y + 28);
 
         // Label
         ctx.fillStyle = '#888888';
-        ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
-        ctx.fillText(stat.label, stat.x, statY + 30);
+        ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillText(stat.label, rightX, y + 48);
       });
 
       // Call to action
       ctx.fillStyle = '#ffffff';
-      ctx.font = '18px -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.fillText('Can you beat my score?', 300, 340);
+      ctx.font = '16px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Can you beat my score?', rightX, 445);
 
       // URL
       ctx.fillStyle = '#667eea';
-      ctx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.fillText('nostrapps.github.io/skyrise', 300, 370);
+      ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText('nostrapps.github.io/skyrise', rightX, 470);
 
       // Convert to blob
       return new Promise(resolve => {
@@ -1241,13 +1293,13 @@
     }
 
     // Share score function
-    async function shareScore(score, stats, isNewHighScore, showToast) {
+    async function shareScore(score, stats, isNewHighScore, showToast, towerSnapshot) {
       const shareText = `🏗️ I scored ${score.toLocaleString()} on Skyrise!\n` +
         `📦 ${stats.blocks} blocks | ⭐ ${stats.perfects} perfects | 🔥 ${stats.maxStreak}x streak\n\n` +
         `Can you beat me?\nhttps://nostrapps.github.io/skyrise/`;
 
       try {
-        const imageBlob = await generateShareImage(score, stats, isNewHighScore);
+        const imageBlob = await generateShareImage(score, stats, isNewHighScore, towerSnapshot);
         const imageFile = new File([imageBlob], 'skyrise-score.png', { type: 'image/png' });
 
         // Try Web Share API with image
@@ -1573,6 +1625,7 @@
       // Game stats for game over screen
       const [gameStats, setGameStats] = useState({ blocks: 0, perfects: 0, maxStreak: 0 });
       const [isNewHighScore, setIsNewHighScore] = useState(false);
+      const towerSnapshotRef = useRef(null);
 
       // Nostr state
       const [nostrUser, setNostrUser] = useState(null);
@@ -1807,6 +1860,10 @@
                     playSound('gameover');
                     haptic('gameover');
                     triggerScreenShake(state, 1.0);
+                    // Capture tower snapshot for share image
+                    try {
+                      towerSnapshotRef.current = canvasRef.current.toDataURL('image/png');
+                    } catch (e) {}
                     setGamePhase('gameover');
                     if (score > highScore) {
                       setHighScore(score);
@@ -2297,7 +2354,7 @@
               </div>
               <div class="btn-row">
                 <button class="btn" onClick=${startGame}>Play Again</button>
-                <button class="btn-share" onClick=${() => shareScore(score, gameStats, isNewHighScore, showToast)}>Share 📤</button>
+                <button class="btn-share" onClick=${() => shareScore(score, gameStats, isNewHighScore, showToast, towerSnapshotRef.current)}>Share 📤</button>
               </div>
             </div>
             <${TrophyButton} />
