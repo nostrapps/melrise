@@ -2224,20 +2224,20 @@
                 if (topBlockScreenY < desiredTopY) {
                   state.targetCameraY = desiredTopY - topBlockWorldY;
                 }
-              }
 
-              // Check level completion
-              const level = LEVELS[state.currentLevel];
-              state.levelBlocks++;
-              if (level.goal !== Infinity && state.levelBlocks >= level.goal) {
-                // Level complete!
-                playLevelCompleteSound();
-                haptic('streak');
+                // Check level completion (only on successful stacks)
+                const level = LEVELS[state.currentLevel];
+                state.levelBlocks++;
+                if (level.goal !== Infinity && state.levelBlocks >= level.goal) {
+                  // Level complete!
+                  playLevelCompleteSound();
+                  haptic('streak');
+                  setLevelBlocks(state.levelBlocks);
+                  setGamePhase('levelcomplete');
+                  return; // Stop the game loop
+                }
                 setLevelBlocks(state.levelBlocks);
-                setGamePhase('levelcomplete');
-                return; // Stop the game loop
               }
-              setLevelBlocks(state.levelBlocks);
 
               // Create new current block
               const newBlock = blocks[blocks.length - 1];
