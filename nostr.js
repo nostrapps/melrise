@@ -144,6 +144,14 @@ export async function createGuestAccount() {
   return { pubkey, name }
 }
 
+// Update guest name and republish kind 0
+export async function updateGuestName(name) {
+  if (!currentUser || currentUser.method !== 'guest') return
+  currentUser.name = name
+  localStorage.setItem('skyrise-nostr-guest-name', name)
+  await publishMetadata(name)
+}
+
 // Publish kind 0 metadata (profile)
 async function publishMetadata(name) {
   if (!currentUser || !privateKeyHex) return

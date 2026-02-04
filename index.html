@@ -579,6 +579,52 @@
       color: #fff;
     }
 
+    .guest-name-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .guest-name-label {
+      color: #fff;
+      font-size: 0.9rem;
+    }
+
+    .guest-name-input {
+      flex: 1;
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .guest-name-input:focus {
+      border-color: rgba(102, 126, 234, 0.6);
+    }
+
+    .guest-name-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    .guest-name-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .guest-name-btn.cancel {
+      color: #888;
+    }
+
     .login-status {
       display: flex;
       align-items: center;
@@ -1658,6 +1704,8 @@
       const [toast, setToast] = useState('');
       const [privkeyInput, setPrivkeyInput] = useState('');
       const [showLogin, setShowLogin] = useState(false);
+      const [editingName, setEditingName] = useState(false);
+      const [nameInput, setNameInput] = useState('');
 
       // Try to restore Nostr session on mount, or create guest account
       useEffect(() => {
@@ -1727,6 +1775,16 @@
         nostr.logout();
         setNostrUser(null);
         showToast('Logged out');
+      };
+
+      // Save edited guest name
+      const saveGuestName = async () => {
+        const name = nameInput.trim();
+        if (!name) return;
+        await nostr.updateGuestName(name);
+        setEditingName(false);
+        showToast(`Name updated to ${name}`);
+        refreshLeaderboard();
       };
 
       // Publish score to Nostr
@@ -2383,9 +2441,26 @@
                     ✓ Logged in as ${nostr.formatPubkey(nostrUser.pubkey)}
                   </div>
                   <button class="btn-logout" onClick=${handleLogout}>Logout</button>
-                ` : html`
+                ` : nostrUser ? html`
+                  <div class="guest-name-row">
+                    ${editingName ? html`
+                      <input
+                        class="guest-name-input"
+                        value=${nameInput}
+                        onInput=${(e) => setNameInput(e.target.value)}
+                        onKeyDown=${(e) => e.key === 'Enter' && saveGuestName()}
+                        placeholder="Enter your name"
+                        autofocus
+                      />
+                      <button class="guest-name-btn" onClick=${saveGuestName}>Save</button>
+                      <button class="guest-name-btn cancel" onClick=${() => setEditingName(false)}>✕</button>
+                    ` : html`
+                      <span class="guest-name-label">${nostr.getCurrentUser()?.name || 'Guest'}</span>
+                      <button class="guest-name-btn" onClick=${() => { setNameInput(nostr.getCurrentUser()?.name || ''); setEditingName(true); }}>✎</button>
+                    `}
+                  </div>
                   <button class="login-toggle" onClick=${() => setShowLogin(!showLogin)}>
-                    ${showLogin ? '▾ Hide login' : nostrUser ? '▸ Log in with your Nostr identity' : '▸ Log in to submit scores'}
+                    ${showLogin ? '▾ Hide login' : '▸ Log in with your Nostr identity'}
                   </button>
                   ${showLogin && html`
                     ${hasExtension && html`
@@ -2409,7 +2484,7 @@
                       <div class="warning-text">⚠️ Using a browser extension is safer</div>
                     </div>
                   `}
-                `}
+                ` : null}
               </div>
 
               <div class="powered-by">
