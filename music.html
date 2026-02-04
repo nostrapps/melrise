@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skyrise - Music Lab</title>
+  <title>Melrise - Music Lab</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -266,7 +266,7 @@
   </style>
 </head>
 <body>
-  <h1>Skyrise Music Lab</h1>
+  <h1>Melrise Music Lab</h1>
   <p class="subtitle">Click a song to play. Each has unique instruments, waveforms & character.</p>
 
   <div id="now-playing" class="now-playing"></div>
@@ -361,10 +361,10 @@
 
     const SONGS = [
       {
-        title: 'Skyrise Original',
+        title: 'Melrise Original',
         key: 'A minor', bpm: 140, arpSpeed: 80,
         style: 'Rob Hubbard',
-        desc: 'The original Skyrise theme. Classic SID pulse lead with triangle bass.',
+        desc: 'The original Melrise theme. Classic SID pulse lead with triangle bass.',
         instruments: {
           // Pure classic SID - all defaults
         },
@@ -1269,11 +1269,10 @@
     renderGrid();
   </script>
 
-  <!-- ========== TRACKER PLAYER (chiptune3 / libopenmpt) ========== -->
-  <script type="module">
-    import { ChiptuneJsPlayer } from 'https://drsnuggles.github.io/chiptune/chiptune3.js';
-
-    // Tracker tune definitions
+  <!-- ========== TRACKER PLAYER (ScripTracker - pure JS, no WASM) ========== -->
+  <script src="mods/scriptracker.min.js"></script>
+  <script>
+    // Tracker tune definitions - all files served locally
     const TRACKER_TUNES = [
       // === PUBLIC DOMAIN (usable in games) ===
       {
@@ -1283,7 +1282,7 @@
         size: '39 KB',
         license: 'pd',
         desc: 'Energetic chiptune. One of the best-rated public domain tracks on ModArchive.',
-        url: 'https://api.modarchive.org/downloads.php?moduleid=172898',
+        file: 'mods/4_rndd.xm',
       },
       {
         title: 'bitshift',
@@ -1292,7 +1291,7 @@
         size: '8 KB',
         license: 'pd',
         desc: 'Minimal 4-channel chip. Tiny file, pure tracker craft.',
-        url: 'https://api.modarchive.org/downloads.php?moduleid=166135',
+        file: 'mods/bitshift.xm',
       },
       {
         title: '8-bit Castle',
@@ -1301,7 +1300,7 @@
         size: '57 KB',
         license: 'pd',
         desc: 'Classic game-style chiptune. Perfect for a platformer or puzzle game.',
-        url: 'https://api.modarchive.org/downloads.php?moduleid=195782',
+        file: 'mods/8bit_castle.mod',
       },
       {
         title: 'Chip Overture',
@@ -1310,7 +1309,7 @@
         size: '59 KB',
         license: 'pd',
         desc: 'Cinematic chiptune overture. Rich and layered despite chip limitations.',
-        url: 'https://api.modarchive.org/downloads.php?moduleid=172185',
+        file: 'mods/chip_overture.xm',
       },
       {
         title: 'Augmented Emotions',
@@ -1319,7 +1318,7 @@
         size: '75 KB',
         license: 'pd',
         desc: 'Emotional chiptune journey. 8/10 rated on ModArchive.',
-        url: 'https://api.modarchive.org/downloads.php?moduleid=172184',
+        file: 'mods/augmented_emotions.xm',
       },
       {
         title: 'Bionic Girl',
@@ -1328,7 +1327,70 @@
         size: '80 KB',
         license: 'pd',
         desc: 'Bright energetic 4-channel chip. Great for action games.',
-        url: 'https://api.modarchive.org/downloads.php?moduleid=174416',
+        file: 'mods/bionic_girl.xm',
+      },
+      {
+        title: 'Chica-pop!',
+        author: 'Drozerix',
+        format: 'XM',
+        size: '63 KB',
+        license: 'pd',
+        desc: 'Rated 10/10. Nostalgic vibes, super nice composition. One of the best on ModArchive.',
+        file: 'mods/chica_pop.xm',
+      },
+      {
+        title: 'Digital Rendezvous',
+        author: 'Drozerix',
+        format: 'XM',
+        size: '92 KB',
+        license: 'pd',
+        desc: 'Rated 10/10. Great melodies and arpeggios. Rich and layered.',
+        file: 'mods/digital_rendezvous.xm',
+      },
+      {
+        title: 'Girl From Mars',
+        author: 'Drozerix',
+        format: 'XM',
+        size: '66 KB',
+        license: 'pd',
+        desc: 'Rated 9/10. Rich in sound and effects, mood-setting lead melody.',
+        file: 'mods/girl_from_mars.xm',
+      },
+      {
+        title: 'Crush',
+        author: 'Drozerix',
+        format: 'XM',
+        size: '121 KB',
+        license: 'pd',
+        desc: 'Rated 9/10. Energetic with crunchy C64 sound. 18 channels.',
+        file: 'mods/crush.xm',
+      },
+      {
+        title: 'Poppy Flower Girls',
+        author: 'Drozerix',
+        format: 'XM',
+        size: '91 KB',
+        license: 'pd',
+        desc: 'Rated 9/10. Excellent chip leads with demo-scene energy.',
+        file: 'mods/poppy_flower_girls.xm',
+      },
+      {
+        title: 'Spectrum',
+        author: 'Peak & Drozerix',
+        format: 'XM',
+        size: '37 KB',
+        license: 'pd',
+        desc: 'Collaborative 4-channel chiptune. Tiny file, pure tracker craft.',
+        file: 'mods/spectrum.xm',
+      },
+      {
+        title: 'Neon Techno',
+        author: 'Drozerix',
+        format: 'MOD',
+        size: '60 KB',
+        license: 'pd',
+        desc: '4-channel MOD format. Electronic techno chiptune style.',
+        file: 'mods/neon_techno.mod',
       },
 
       // === REFERENCE (copyrighted, for inspiration only) ===
@@ -1339,7 +1401,7 @@
         size: '50 KB',
         license: 'ref',
         desc: 'Legendary ModArchive "Spotlit" track. 9/10 rated. This is what great tracker music sounds like.',
-        url: 'https://api.modarchive.org/downloads.php?moduleid=66187',
+        file: 'mods/hybrid_song.xm',
       },
       {
         title: 'LUCiD Keygen #2',
@@ -1348,7 +1410,7 @@
         size: '20 KB',
         license: 'ref',
         desc: 'Iconic crackscene chiptune by dubmood. 25 favorites. Pure SID energy.',
-        url: 'https://api.modarchive.org/downloads.php?moduleid=36583',
+        file: 'mods/lucid_keygen2.xm',
       },
       {
         title: '5985',
@@ -1357,7 +1419,7 @@
         size: '14 KB',
         license: 'ref',
         desc: 'Competition winner by maktone. 14KB of perfection. Proof that less is more.',
-        url: 'https://api.modarchive.org/downloads.php?moduleid=54826',
+        file: 'mods/5985.xm',
       },
       {
         title: 'CHIPTUNE',
@@ -1366,39 +1428,80 @@
         size: '27 KB',
         license: 'ref',
         desc: 'Classic by 4-mat (Matt Simmonds). One of the most influential chip composers of the Amiga era.',
-        url: 'https://api.modarchive.org/downloads.php?moduleid=36874',
+        file: 'mods/chiptune_4mat.mod',
+      },
+      {
+        title: 'Imaginary Friend',
+        author: 'Radix',
+        format: 'XM',
+        size: '34 KB',
+        license: 'ref',
+        desc: 'Spotlit 9/10. "Awesome and happy chiptune" - brilliant melody that never gets old.',
+        file: 'mods/imaginary_friend.xm',
+      },
+      {
+        title: 'Blast Off Into Space',
+        author: 'Zabutom',
+        format: 'XM',
+        size: '42 KB',
+        license: 'ref',
+        desc: 'Rated 10/10. "One of the best chiptunes ever." Energetic and catchy.',
+        file: 'mods/blast_off.xm',
+      },
+      {
+        title: 'Dans la rue',
+        author: 'Cerror & Xylo',
+        format: 'XM',
+        size: '86 KB',
+        license: 'ref',
+        desc: 'Spotlit. "One of the most positive chiptunes ever." Pure unconditional happiness.',
+        file: 'mods/dans_la_rue.xm',
+      },
+      {
+        title: 'Team Haze Chiptune',
+        author: 'Dubmood',
+        format: 'XM',
+        size: '22 KB',
+        license: 'ref',
+        desc: 'Tiny 4-channel keygen-style chip. Was used in a Wii homebrew game. Very energetic.',
+        file: 'mods/team_haze.xm',
+      },
+      {
+        title: '8-Bit Love',
+        author: 'MrGamer',
+        format: 'XM',
+        size: '36 KB',
+        license: 'ref',
+        desc: 'Rated 9/10. Classic 8-bit style with enduring appeal across nearly 20 years.',
+        file: 'mods/8bit_love.xm',
+      },
+      {
+        title: 'Chiptune-Powermetal',
+        author: 'CADAVER',
+        format: 'XM',
+        size: '26 KB',
+        license: 'ref',
+        desc: 'Rated 9/10. Unique chiptune/powermetal crossover. Tiny, fierce, energetic.',
+        file: 'mods/chiptune_powermetal.xm',
       },
     ];
 
-    let player = null;
+    let modPlayer = null;
     let trackerPlaying = false;
     let currentTrackerIndex = -1;
 
-    // Initialize player
-    try {
-      player = new ChiptuneJsPlayer({ repeatCount: -1 });
-    } catch (e) {
-      console.error('Failed to init chiptune3:', e);
-      document.getElementById('tracker-status').textContent = 'Failed to load tracker player. Try refreshing.';
-    }
-
-    async function playTrackerTune(index) {
+    function playTrackerTune(index) {
       const tune = TRACKER_TUNES[index];
-      await playTrackerURL(tune.url, tune.title, index);
+      playTrackerFile(tune.file, tune.title, index);
     }
 
-    async function playTrackerURL(url, title, cardIndex) {
+    function playTrackerFile(file, title, cardIndex) {
       // Stop everything
       stopTrackerInternal();
       if (typeof stopMusic === 'function') stopMusic();
 
-      if (!player) {
-        document.getElementById('tracker-status').textContent = 'Player not loaded.';
-        return;
-      }
-
       const statusEl = document.getElementById('tracker-status');
-      statusEl.textContent = `Loading ${title || url}...`;
+      statusEl.textContent = `Loading ${title || file}...`;
 
       // Update card highlighting
       document.querySelectorAll('.tracker-card').forEach((c, i) => {
@@ -1406,31 +1509,33 @@
       });
 
       try {
-        // Fetch the file ourselves to handle CORS
-        const resp = await fetch(url);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const buffer = await resp.arrayBuffer();
+        modPlayer = new ScripTracker();
 
-        player.play(buffer);
-        trackerPlaying = true;
-        currentTrackerIndex = cardIndex ?? -1;
-        statusEl.textContent = `Now playing: ${title || 'Custom track'}`;
-
-        player.onEnded(() => {
-          // Loop: play again
-          try { player.play(buffer); } catch(e) {}
+        modPlayer.on(ScripTracker.Events.playerReady, function() {
+          modPlayer.play();
+          trackerPlaying = true;
+          currentTrackerIndex = cardIndex ?? -1;
+          statusEl.textContent = `Now playing: ${title || file}`;
         });
 
+        modPlayer.on(ScripTracker.Events.songEnded, function() {
+          // Loop
+          modPlayer.play();
+        });
+
+        modPlayer.loadModule(file);
+
       } catch (e) {
-        console.error('Tracker load error:', e);
-        statusEl.textContent = `Failed to load: ${e.message}. CORS may be blocking modarchive.org.`;
+        console.error('Tracker error:', e);
+        statusEl.textContent = `Error: ${e.message}`;
         document.querySelectorAll('.tracker-card').forEach(c => c.classList.remove('playing'));
       }
     }
 
     function stopTrackerInternal() {
-      if (player) {
-        try { player.stop(); } catch(e) {}
+      if (modPlayer) {
+        try { modPlayer.stop(); } catch(e) {}
+        modPlayer = null;
       }
       trackerPlaying = false;
       currentTrackerIndex = -1;
@@ -1441,22 +1546,15 @@
     // Expose to global scope
     window.stopTracker = stopTrackerInternal;
 
-    window.playCustomURL = async function() {
+    window.playCustomURL = function() {
       const input = document.getElementById('custom-url');
       let url = input.value.trim();
       if (!url) return;
-
-      // Convert modarchive page URLs to API download URLs
-      const match = url.match(/moduleid=(\d+)/);
-      if (match) {
-        url = `https://api.modarchive.org/downloads.php?moduleid=${match[1]}`;
-      }
-
-      await playTrackerURL(url, 'Custom track', -1);
+      playTrackerFile(url, 'Custom track', -1);
     };
 
     // Render tracker grid
-    function renderTrackerGrid() {
+    (function renderTrackerGrid() {
       const grid = document.getElementById('tracker-grid');
       TRACKER_TUNES.forEach((tune, i) => {
         const card = document.createElement('div');
@@ -1481,9 +1579,7 @@
         `;
         grid.appendChild(card);
       });
-    }
-
-    renderTrackerGrid();
+    })();
   </script>
 </body>
 </html>
