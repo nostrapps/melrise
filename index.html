@@ -1667,7 +1667,6 @@
           } else {
             const guest = await nostr.createGuestAccount();
             setNostrUser({ pubkey: guest.pubkey });
-            showToast(`Playing as ${guest.name}`);
           }
         });
       }, []);
