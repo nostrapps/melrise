@@ -559,9 +559,24 @@
     }
 
     .login-section {
-      margin-bottom: 1.5rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .login-toggle {
+      background: none;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0.5rem 0;
+      width: 100%;
+      text-align: left;
+    }
+
+    .login-toggle:hover {
+      color: #fff;
     }
 
     .login-status {
@@ -1625,6 +1640,7 @@
       const [leaderboardLoading, setLeaderboardLoading] = useState(false);
       const [toast, setToast] = useState('');
       const [privkeyInput, setPrivkeyInput] = useState('');
+      const [showLogin, setShowLogin] = useState(false);
 
       // Try to restore Nostr session on mount
       useEffect(() => {
@@ -2316,37 +2332,6 @@
                 <button class="modal-close" onClick=${() => setShowLeaderboard(false)}>×</button>
               </div>
 
-              <div class="login-section">
-                ${nostrUser ? html`
-                  <div class="login-status">
-                    ✓ Logged in as ${nostr.formatPubkey(nostrUser.pubkey)}
-                  </div>
-                  <button class="btn-logout" onClick=${handleLogout}>Logout</button>
-                ` : html`
-                  <div class="login-status logged-out">Not logged in</div>
-                  ${hasExtension && html`
-                    <button class="btn-login" onClick=${handleExtensionLogin}>
-                      Login with Extension
-                    </button>
-                  `}
-                  <div class="privkey-section">
-                    ${!hasExtension && html`<div class="divider"><span>or</span></div>`}
-                    <input
-                      type="password"
-                      class="privkey-input"
-                      placeholder="Enter nsec or hex private key"
-                      value=${privkeyInput}
-                      onInput=${(e) => setPrivkeyInput(e.target.value)}
-                      onKeyDown=${(e) => e.key === 'Enter' && handlePrivkeyLogin()}
-                    />
-                    <button class="btn-login" onClick=${handlePrivkeyLogin} disabled=${!privkeyInput.trim()}>
-                      Login with Key
-                    </button>
-                    <div class="warning-text">⚠️ Using a browser extension is safer</div>
-                  </div>
-                `}
-              </div>
-
               ${leaderboardLoading ? html`
                 <div class="leaderboard-loading">Loading...</div>
               ` : leaderboard.length === 0 ? html`
@@ -2362,6 +2347,41 @@
                   `)}
                 </ul>
               `}
+
+              <div class="login-section">
+                ${nostrUser ? html`
+                  <div class="login-status">
+                    ✓ Logged in as ${nostr.formatPubkey(nostrUser.pubkey)}
+                  </div>
+                  <button class="btn-logout" onClick=${handleLogout}>Logout</button>
+                ` : html`
+                  <button class="login-toggle" onClick=${() => setShowLogin(!showLogin)}>
+                    ${showLogin ? '▾ Hide login' : '▸ Log in to submit scores'}
+                  </button>
+                  ${showLogin && html`
+                    ${hasExtension && html`
+                      <button class="btn-login" onClick=${handleExtensionLogin}>
+                        Login with Extension
+                      </button>
+                    `}
+                    <div class="privkey-section">
+                      ${!hasExtension && html`<div class="divider"><span>or</span></div>`}
+                      <input
+                        type="password"
+                        class="privkey-input"
+                        placeholder="Enter nsec or hex private key"
+                        value=${privkeyInput}
+                        onInput=${(e) => setPrivkeyInput(e.target.value)}
+                        onKeyDown=${(e) => e.key === 'Enter' && handlePrivkeyLogin()}
+                      />
+                      <button class="btn-login" onClick=${handlePrivkeyLogin} disabled=${!privkeyInput.trim()}>
+                        Login with Key
+                      </button>
+                      <div class="warning-text">⚠️ Using a browser extension is safer</div>
+                    </div>
+                  `}
+                `}
+              </div>
 
               <div class="powered-by">
                 Powered by <a href="https://nostr.com" target="_blank">Nostr</a>
