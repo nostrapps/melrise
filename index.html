@@ -2450,7 +2450,6 @@
                         onInput=${(e) => setNameInput(e.target.value)}
                         onKeyDown=${(e) => e.key === 'Enter' && saveGuestName()}
                         placeholder="Enter your name"
-                        autofocus
                       />
                       <button class="guest-name-btn" onClick=${saveGuestName}>Save</button>
                       <button class="guest-name-btn cancel" onClick=${() => setEditingName(false)}>✕</button>
