@@ -10,7 +10,7 @@ const RELAYS = [
   'wss://nos.lol'
 ]
 
-const GAME_ID = 'skyrise-nostrapps'
+const GAME_ID = 'melrise'
 
 let currentUser = null
 let privateKeyHex = null
