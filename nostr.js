@@ -1,5 +1,5 @@
 /**
- * Nostr module for Skyrise game
+ * Nostr module for Melrise game
  * Handles authentication, event signing, and relay communication
  */
 
@@ -158,7 +158,7 @@ async function publishMetadata(name) {
 
   const content = JSON.stringify({
     name,
-    about: 'Skyrise player'
+    about: 'Melrise player'
   })
 
   const event = {
