@@ -113,11 +113,64 @@ function bech32ToHex(bech32) {
   return bytesToHex(new Uint8Array(bytes))
 }
 
+// Generate a fun random name for guest accounts
+function generateGuestName() {
+  const adj = ['Neon', 'Cosmic', 'Pixel', 'Turbo', 'Solar', 'Lunar', 'Hyper', 'Retro', 'Cyber', 'Astro',
+    'Blazing', 'Crystal', 'Golden', 'Shadow', 'Thunder', 'Mega', 'Ultra', 'Super', 'Stellar', 'Atomic']
+  const noun = ['Fox', 'Tiger', 'Falcon', 'Dragon', 'Phoenix', 'Wolf', 'Hawk', 'Panda', 'Lynx', 'Eagle',
+    'Cobra', 'Shark', 'Raven', 'Lion', 'Bear', 'Viper', 'Otter', 'Crane', 'Jaguar', 'Owl']
+  const num = Math.floor(Math.random() * 99) + 1
+  return `${adj[Math.floor(Math.random() * adj.length)]} ${noun[Math.floor(Math.random() * noun.length)]} ${num}`
+}
+
+// Create a guest account with a generated keypair and name
+export async function createGuestAccount() {
+  const privBytes = crypto.getRandomValues(new Uint8Array(32))
+  const privHex = bytesToHex(privBytes)
+  const pubkey = getPublicKey(privHex)
+  const name = generateGuestName()
+
+  privateKeyHex = privHex
+  currentUser = { pubkey, method: 'guest', name }
+
+  localStorage.setItem('skyrise-nostr-pubkey', pubkey)
+  localStorage.setItem('skyrise-nostr-method', 'guest')
+  localStorage.setItem('skyrise-nostr-privkey', privHex)
+  localStorage.setItem('skyrise-nostr-guest-name', name)
+
+  // Publish kind 0 metadata
+  await publishMetadata(name)
+
+  return { pubkey, name }
+}
+
+// Publish kind 0 metadata (profile)
+async function publishMetadata(name) {
+  if (!currentUser || !privateKeyHex) return
+
+  const content = JSON.stringify({
+    name,
+    about: 'Skyrise player'
+  })
+
+  const event = {
+    kind: 0,
+    content,
+    tags: [],
+    created_at: Math.floor(Date.now() / 1000)
+  }
+
+  const signedEvent = await signEventWithPrivkey(event, privateKeyHex)
+  await Promise.allSettled(RELAYS.map(url => publishToRelay(url, signedEvent)))
+}
+
 export function logout() {
   currentUser = null
   privateKeyHex = null
   localStorage.removeItem('skyrise-nostr-pubkey')
   localStorage.removeItem('skyrise-nostr-method')
+  localStorage.removeItem('skyrise-nostr-privkey')
+  localStorage.removeItem('skyrise-nostr-guest-name')
 }
 
 export function getCurrentUser() {
@@ -128,10 +181,11 @@ export function hasExtension() {
   return typeof window !== 'undefined' && !!window.nostr
 }
 
-// Try to restore session from localStorage (extension only)
+// Try to restore session from localStorage
 export async function restoreSession() {
   const pubkey = localStorage.getItem('skyrise-nostr-pubkey')
   const method = localStorage.getItem('skyrise-nostr-method')
+
   if (pubkey && method === 'extension' && window.nostr) {
     try {
       const currentPubkey = await window.nostr.getPublicKey()
@@ -143,6 +197,17 @@ export async function restoreSession() {
       // Extension not available or user denied
     }
   }
+
+  if (pubkey && method === 'guest') {
+    const privHex = localStorage.getItem('skyrise-nostr-privkey')
+    const name = localStorage.getItem('skyrise-nostr-guest-name')
+    if (privHex) {
+      privateKeyHex = privHex
+      currentUser = { pubkey, method: 'guest', name }
+      return pubkey
+    }
+  }
+
   return null
 }
 
@@ -258,7 +323,7 @@ export async function fetchMetadata(pubkeys) {
         if (!existing || event.created_at > existing.created_at) {
           const content = JSON.parse(event.content)
           metadataMap.set(event.pubkey, {
-            name: content.display_name || content.name || null,
+            name: (content.display_name || content.name || '').trim() || null,
             picture: content.picture || null,
             created_at: event.created_at
           })

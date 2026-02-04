@@ -1659,10 +1659,16 @@
       const [privkeyInput, setPrivkeyInput] = useState('');
       const [showLogin, setShowLogin] = useState(false);
 
-      // Try to restore Nostr session on mount
+      // Try to restore Nostr session on mount, or create guest account
       useEffect(() => {
-        nostr.restoreSession().then(pubkey => {
-          if (pubkey) setNostrUser({ pubkey });
+        nostr.restoreSession().then(async pubkey => {
+          if (pubkey) {
+            setNostrUser({ pubkey });
+          } else {
+            const guest = await nostr.createGuestAccount();
+            setNostrUser({ pubkey: guest.pubkey });
+            showToast(`Playing as ${guest.name}`);
+          }
         });
       }, []);
 
@@ -2373,14 +2379,14 @@
               `}
 
               <div class="login-section">
-                ${nostrUser ? html`
+                ${nostrUser && nostr.getCurrentUser()?.method !== 'guest' ? html`
                   <div class="login-status">
                     ✓ Logged in as ${nostr.formatPubkey(nostrUser.pubkey)}
                   </div>
                   <button class="btn-logout" onClick=${handleLogout}>Logout</button>
                 ` : html`
                   <button class="login-toggle" onClick=${() => setShowLogin(!showLogin)}>
-                    ${showLogin ? '▾ Hide login' : '▸ Log in to submit scores'}
+                    ${showLogin ? '▾ Hide login' : nostrUser ? '▸ Log in with your Nostr identity' : '▸ Log in to submit scores'}
                   </button>
                   ${showLogin && html`
                     ${hasExtension && html`
