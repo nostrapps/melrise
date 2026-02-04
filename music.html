@@ -907,7 +907,7 @@
         analyser.connect(compressor);
 
         const masterGain = ctx.createGain();
-        masterGain.gain.value = 0.25;
+        masterGain.gain.value = 0.4;
         masterGain.connect(analyser);
 
         // Channel gains
@@ -1512,6 +1512,7 @@
         modPlayer = new ScripTracker();
 
         modPlayer.on(ScripTracker.Events.playerReady, function() {
+          modPlayer.setMasterVolume(0.4);
           modPlayer.play();
           trackerPlaying = true;
           currentTrackerIndex = cardIndex ?? -1;
