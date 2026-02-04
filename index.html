@@ -704,6 +704,23 @@
     .leaderboard-rank.silver { color: #c0c0c0; }
     .leaderboard-rank.bronze { color: #cd7f32; }
 
+    .leaderboard-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .leaderboard-avatar.placeholder {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.15);
+      color: #888;
+      font-size: 0.75rem;
+    }
+
     .leaderboard-name {
       flex: 1;
       color: #fff;
@@ -1664,7 +1681,8 @@
           const metadata = await nostr.fetchMetadata(pubkeys);
           const enriched = scores.map(s => ({
             ...s,
-            name: metadata.get(s.pubkey)?.name || nostr.formatPubkey(s.pubkey)
+            name: metadata.get(s.pubkey)?.name || nostr.formatPubkey(s.pubkey),
+            picture: metadata.get(s.pubkey)?.picture || null
           }));
           setLeaderboard(enriched);
         } catch (err) {
@@ -2346,6 +2364,7 @@
                   ${leaderboard.map((entry, i) => html`
                     <li class="leaderboard-item ${nostrUser && entry.pubkey === nostrUser.pubkey ? 'you' : ''}">
                       <span class="leaderboard-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">#${i + 1}</span>
+                      ${entry.picture ? html`<img class="leaderboard-avatar" src=${entry.picture} alt="" />` : html`<span class="leaderboard-avatar placeholder">?</span>`}
                       <span class="leaderboard-name">${entry.name}</span>
                       <span class="leaderboard-score">${entry.score.toLocaleString()}</span>
                     </li>
