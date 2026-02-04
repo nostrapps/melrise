@@ -1884,6 +1884,11 @@
                     }
                     // Publish score to Nostr if logged in
                     publishScore(score);
+                    // Auto-show leaderboard after a short delay
+                    setTimeout(() => {
+                      setShowLeaderboard(true);
+                      refreshLeaderboard();
+                    }, 1500);
                   }
                   return newHealth;
                 });
