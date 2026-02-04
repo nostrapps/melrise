@@ -7,17 +7,17 @@
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://nostrapps.github.io/skyrise/">
+  <meta property="og:url" content="https://nostrapps.github.io/melrise/">
   <meta property="og:title" content="Melrise - Tower Stacking Game">
   <meta property="og:description" content="Stack blocks to build the tallest tower! Features C64-style chiptune music, combo streaks, and a global Nostr leaderboard.">
-  <meta property="og:image" content="https://nostrapps.github.io/skyrise/og-image.svg">
+  <meta property="og:image" content="https://nostrapps.github.io/melrise/og-image.svg">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:url" content="https://nostrapps.github.io/skyrise/">
+  <meta name="twitter:url" content="https://nostrapps.github.io/melrise/">
   <meta name="twitter:title" content="Melrise - Tower Stacking Game">
   <meta name="twitter:description" content="Stack blocks to build the tallest tower! Features C64-style chiptune music, combo streaks, and a global Nostr leaderboard.">
-  <meta name="twitter:image" content="https://nostrapps.github.io/skyrise/og-image.svg">
+  <meta name="twitter:image" content="https://nostrapps.github.io/melrise/og-image.svg">
 
   <!-- General meta -->
   <meta name="description" content="Stack blocks to build the tallest tower! Features C64-style chiptune music, combo streaks, and a global Nostr leaderboard.">
@@ -1293,7 +1293,7 @@
       // URL
       ctx.fillStyle = '#667eea';
       ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.fillText('nostrapps.github.io/skyrise', rightX, 470);
+      ctx.fillText('nostrapps.github.io/melrise', rightX, 470);
 
       // Convert to blob
       return new Promise(resolve => {
@@ -1305,7 +1305,7 @@
     async function shareScore(score, stats, isNewHighScore, showToast, towerSnapshot) {
       const shareText = `🏗️ I scored ${score.toLocaleString()} on Melrise!\n` +
         `📦 ${stats.blocks} blocks | ⭐ ${stats.perfects} perfects | 🔥 ${stats.maxStreak}x streak\n\n` +
-        `Can you beat me?\nhttps://nostrapps.github.io/skyrise/`;
+        `Can you beat me?\nhttps://nostrapps.github.io/melrise/`;
 
       try {
         const imageBlob = await generateShareImage(score, stats, isNewHighScore, towerSnapshot);
