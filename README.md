@@ -102,4 +102,4 @@ No build step required — everything runs directly in the browser.
 
 ## License
 
-MIT
+AGPL-3.0 - Copyright (C) 2025 Melvin Carvalho. See [LICENSE](LICENSE) for details.
