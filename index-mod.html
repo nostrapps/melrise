@@ -1171,7 +1171,7 @@
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('SKYRISE', rightX, 55);
+      ctx.fillText('MELRISE', rightX, 55);
 
       // Score
       ctx.fillStyle = '#ffd700';
@@ -1223,7 +1223,7 @@
       // URL
       ctx.fillStyle = '#667eea';
       ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
-      ctx.fillText('nostrapps.github.io/skyrise', rightX, 470);
+      ctx.fillText('nostrapps.github.io/melrise', rightX, 470);
 
       // Convert to blob
       return new Promise(resolve => {
@@ -1233,13 +1233,13 @@
 
     // Share score function
     async function shareScore(score, stats, isNewHighScore, showToast, towerSnapshot) {
-      const shareText = `🏗️ I scored ${score.toLocaleString()} on Skyrise!\n` +
+      const shareText = `🏗️ I scored ${score.toLocaleString()} on Melrise!\n` +
         `📦 ${stats.blocks} blocks | ⭐ ${stats.perfects} perfects | 🔥 ${stats.maxStreak}x streak\n\n` +
-        `Can you beat me?\nhttps://nostrapps.github.io/skyrise/`;
+        `Can you beat me?\nhttps://nostrapps.github.io/melrise/`;
 
       try {
         const imageBlob = await generateShareImage(score, stats, isNewHighScore, towerSnapshot);
-        const imageFile = new File([imageBlob], 'skyrise-score.png', { type: 'image/png' });
+        const imageFile = new File([imageBlob], 'melrise-score.png', { type: 'image/png' });
 
         // Try Web Share API with image
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
@@ -1253,7 +1253,7 @@
         // Fallback: Web Share API without image
         if (navigator.share) {
           await navigator.share({
-            title: 'Skyrise Score',
+            title: 'Melrise Score',
             text: shareText
           });
           return;
@@ -1338,7 +1338,7 @@
     // Each level has unique colors and background; music comes from LEVEL_TRACKS MOD files
     const LEVELS = [
       {
-        // Level 1: The original Skyrise tune - Am, Rob Hubbard style
+        // Level 1: The original Melrise tune - Am, Rob Hubbard style
         id: 1, name: 'Foundation', goal: 10, speedMult: 0.8, startWidth: 200,
         bgGradient: ['#0a0a15', '#1a1a2e', '#16213e', '#0f3460'],
         colors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F8B500', '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9']
@@ -2388,7 +2388,7 @@
           <div>
             <canvas ref=${canvasRef} onClick=${startGame} style="cursor: pointer" />
             <div class="overlay">
-              <div class="title">🏗️ Skyrise</div>
+              <div class="title">🏗️ Melrise</div>
               <div class="subtitle">Stack blocks. Complete levels. Go endless.</div>
               <button class="btn" onClick=${startGame}>Start Game</button>
               <div class="instructions">Tap or click to drop blocks</div>
